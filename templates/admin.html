@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - News Hub{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+    <h1>Admin Dashboard</h1>
+</div>
+
+<div id="stats-grid" class="stats-grid">
+    <div class="loading">Loading stats...</div>
+</div>
+
+<div class="admin-section">
+    <h2>Recent Posts</h2>
+    <div id="recent-posts"></div>
+</div>
+
+<div class="admin-section">
+    <h2>Delete Post</h2>
+    <div class="delete-form">
+        <input type="number" id="delete-id" placeholder="Post ID" min="1">
+        <input type="text" id="delete-api-key" placeholder="API Key">
+        <button onclick="deletePost()" class="btn-danger">Delete Post</button>
+        <span id="delete-msg"></span>
+    </div>
+</div>
+
+<script>
+    async function loadStats() {
+        try {
+            const res = await fetch('/api/stats');
+            const data = await res.json();
+
+            document.getElementById('stats-grid').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${data.total_posts}</div>
+                    <div class="stat-label">Total Posts</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${data.last_post ? formatDate(data.last_post) : 'None'}</div>
+                    <div class="stat-label">Last Post</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${Object.keys(data.by_source || {}).length}</div>
+                    <div class="stat-label">Sources</div>
+                </div>
+            `;
+        } catch (err) {
+            document.getElementById('stats-grid').innerHTML = '<div class="error">Failed to load stats.</div>';
+        }
+    }
+
+    async function loadRecentPosts() {
+        try {
+            const res = await fetch('/api/posts?limit=10');
+            const data = await res.json();
+
+            if (!data.posts.length) {
+                document.getElementById('recent-posts').innerHTML = '<p>No posts yet.</p>';
+                return;
+            }
+
+            document.getElementById('recent-posts').innerHTML = `
+                <table class="admin-table">
+                    <thead><tr><th>ID</th><th>Title</th><th>Date</th><th>Source</th></tr></thead>
+                    <tbody>
+                        ${data.posts.map(p => `
+                            <tr>
+                                <td>${p.id}</td>
+                                <td><a href="/post/${p.id}">${escapeHtml(p.title)}</a></td>
+                                <td>${formatDate(p.created_at)}</td>
+                                <td>${p.source || 'automation'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        } catch (err) {
+            document.getElementById('recent-posts').innerHTML = '<div class="error">Failed to load posts.</div>';
+        }
+    }
+
+    async function deletePost() {
+        const id = document.getElementById('delete-id').value;
+        const key = document.getElementById('delete-api-key').value;
+        const msg = document.getElementById('delete-msg');
+
+        if (!id || !key) { msg.textContent = 'Enter post ID and API key.'; return; }
+
+        try {
+            const res = await fetch(`/api/posts/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${key}` }
+            });
+            const data = await res.json();
+            msg.textContent = res.ok ? '✓ Deleted' : `Error: ${data.error}`;
+            if (res.ok) { loadStats(); loadRecentPosts(); }
+        } catch (err) {
+            msg.textContent = 'Request failed.';
+        }
+    }
+
+    function escapeHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    function formatDate(ts) {
+        return new Date(ts).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    loadStats();
+    loadRecentPosts();
+</script>
+{% endblock %}

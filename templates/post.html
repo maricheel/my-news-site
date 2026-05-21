@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Post - News Hub{% endblock %}
+
+{% block content %}
+<div id="post-container">
+    <div class="loading">Loading post...</div>
+</div>
+
+<script>
+    const postId = {{ post_id }};
+
+    async function loadPost() {
+        try {
+            const res = await fetch(`/api/posts/${postId}`);
+            if (!res.ok) {
+                document.getElementById('post-container').innerHTML = '<div class="error">Post not found.</div>';
+                return;
+            }
+            const post = await res.json();
+
+            document.title = post.title + ' - News Hub';
+
+            document.getElementById('post-container').innerHTML = `
+                <article class="single-post">
+                    <header class="post-header">
+                        <a href="/" class="back-link">← Back to Home</a>
+                        <h1 class="post-title">${escapeHtml(post.title)}</h1>
+                        <div class="post-meta">
+                            <span class="post-date">${formatDate(post.created_at)}</span>
+                            ${post.categories && post.categories.length ? `<span class="post-categories">Categories: ${post.categories.join(', ')}</span>` : ''}
+                        </div>
+                    </header>
+
+                    ${post.rumble_link ? `
+                    <div class="video-wrapper">
+                        <iframe src="${post.rumble_link}" allowfullscreen frameborder="0"></iframe>
+                    </div>` : ''}
+
+                    <div class="post-content">
+                        ${post.content}
+                    </div>
+                </article>
+            `;
+        } catch (err) {
+            document.getElementById('post-container').innerHTML = '<div class="error">Failed to load post.</div>';
+        }
+    }
+
+    function escapeHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    function formatDate(ts) {
+        return new Date(ts).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    loadPost();
+</script>
+{% endblock %}

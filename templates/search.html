@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Search - News Hub{% endblock %}
+
+{% block content %}
+<div class="search-page">
+    <h1>Search Posts</h1>
+
+    <form class="search-form" action="/search" method="get">
+        <input type="text" name="q" value="{{ query }}" placeholder="Search posts..." autofocus>
+        <button type="submit">Search</button>
+    </form>
+
+    <div id="results-container">
+        {% if query %}
+            <div class="loading">Searching...</div>
+        {% else %}
+            <p class="search-hint">Enter a search term above to find posts.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if query %}
+<script>
+    const q = {{ query | tojson }};
+
+    async function doSearch() {
+        try {
+            const res = await fetch(`/api/posts/search?q=${encodeURIComponent(q)}&limit=20`);
+            const data = await res.json();
+
+            if (data.error) {
+                document.getElementById('results-container').innerHTML = `<div class="error">${data.error}</div>`;
+                return;
+            }
+
+            if (!data.posts.length) {
+                document.getElementById('results-container').innerHTML = `<div class="no-posts">No results for "<strong>${escapeHtml(q)}</strong>".</div>`;
+                return;
+            }
+
+            document.getElementById('results-container').innerHTML = `
+                <p class="results-count">${data.count} result${data.count !== 1 ? 's' : ''} for "<strong>${escapeHtml(q)}</strong>"</p>
+                <div class="posts-grid">
+                    ${data.posts.map(post => `
+                        <article class="post-card">
+                            <a href="/post/${post.id}" class="post-card-link">
+                                <div class="post-card-body">
+                                    <h2 class="post-card-title">${escapeHtml(post.title)}</h2>
+                                    <p class="post-card-excerpt">${getExcerpt(post.content)}</p>
+                                    <div class="post-card-meta">
+                                        <span class="post-date">${formatDate(post.created_at)}</span>
+                                        ${post.rumble_link ? '<span class="has-video">▶ Video</span>' : ''}
+                                    </div>
+                                </div>
+                            </a>
+                        </article>
+                    `).join('')}
+                </div>
+            `;
+        } catch (err) {
+            document.getElementById('results-container').innerHTML = '<div class="error">Search failed. Please try again.</div>';
+        }
+    }
+
+    function getExcerpt(html) {
+        const text = html.replace(/<[^>]*>/g, '');
+        return text.length > 120 ? text.slice(0, 120) + '...' : text;
+    }
+
+    function escapeHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    function formatDate(ts) {
+        return new Date(ts).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    doSearch();
+</script>
+{% endif %}
+{% endblock %}
