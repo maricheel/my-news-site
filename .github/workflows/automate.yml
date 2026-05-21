@@ -1,0 +1,31 @@
+name: Auto-publish posts
+
+on:
+  schedule:
+    # Runs every 45 minutes, 24/7, in the cloud
+    - cron: '*/45 * * * *'
+  workflow_dispatch:
+    # Also lets you trigger it manually from GitHub with a button
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests python-dotenv
+
+      - name: Run automation
+        env:
+          WEBSITE_URL: ${{ secrets.WEBSITE_URL }}
+          API_KEY: ${{ secrets.API_KEY }}
+          WORDPRESS_URL: ${{ secrets.WORDPRESS_URL }}
+        run: python auto/automate_simple.py
