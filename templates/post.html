@@ -1,10 +1,9 @@
 {% extends "base.html" %}
-
-{% block title %}Post - News Hub{% endblock %}
+{% block title %}Post — NewsHub{% endblock %}
 
 {% block content %}
-<div id="post-container">
-    <div class="loading">Loading post...</div>
+<div id="post-container" class="single-post">
+    <div class="loading"> </div>
 </div>
 
 <script>
@@ -19,42 +18,49 @@
             }
             const post = await res.json();
 
-            document.title = post.title + ' - News Hub';
+            document.title = post.title + ' — NewsHub';
+
+            const showName = post.categories && post.categories.length ? post.categories[0] : '';
 
             document.getElementById('post-container').innerHTML = `
-                <article class="single-post">
-                    <header class="post-header">
-                        <a href="/" class="back-link">← Back to Home</a>
-                        <h1 class="post-title">${escapeHtml(post.title)}</h1>
-                        <div class="post-meta">
-                            <span class="post-date">${formatDate(post.created_at)}</span>
-                            ${post.categories && post.categories.length ? `<span class="post-categories">Categories: ${post.categories.join(', ')}</span>` : ''}
-                        </div>
-                    </header>
+                <a href="/" class="back-link">← Back to all shows</a>
 
-                    ${post.rumble_link ? `
-                    <div class="video-wrapper">
-                        <iframe src="${post.rumble_link}" allowfullscreen frameborder="0"></iframe>
-                    </div>` : ''}
-
-                    <div class="post-content">
-                        ${post.content}
+                <header class="post-header">
+                    ${showName ? `<span class="post-show-badge">${escHtml(showName)}</span>` : ''}
+                    <h1 class="post-title">${escHtml(post.title)}</h1>
+                    <div class="post-meta">
+                        <span>${fmtDate(post.created_at)}</span>
+                        ${post.categories && post.categories.length > 1
+                            ? `<span>${post.categories.slice(1).map(escHtml).join(', ')}</span>`
+                            : ''}
                     </div>
-                </article>
+                </header>
+
+                ${post.thumbnail_url && !post.rumble_link ? `
+                <div class="post-hero-thumb">
+                    <img src="${post.thumbnail_url}" alt="${escHtml(post.title)}">
+                </div>` : ''}
+
+                ${post.rumble_link ? `
+                <div class="video-wrapper">
+                    <iframe src="${post.rumble_link}" allowfullscreen frameborder="0" scrolling="no"></iframe>
+                </div>` : ''}
+
+                <div class="post-content">${post.content}</div>
             `;
         } catch (err) {
             document.getElementById('post-container').innerHTML = '<div class="error">Failed to load post.</div>';
         }
     }
 
-    function escapeHtml(str) {
+    function escHtml(s) {
         const d = document.createElement('div');
-        d.textContent = str;
+        d.textContent = s;
         return d.innerHTML;
     }
 
-    function formatDate(ts) {
-        return new Date(ts).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    function fmtDate(ts) {
+        return new Date(ts).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     }
 
     loadPost();

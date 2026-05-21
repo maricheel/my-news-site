@@ -1,22 +1,42 @@
 {% extends "base.html" %}
-
-{% block title %}News Hub - Latest Posts{% endblock %}
+{% block title %}NewsHub — Latest Coverage{% endblock %}
 
 {% block content %}
-<section class="hero">
-    <h1>Welcome to News Hub</h1>
-    <p>Your source for the latest news and updates</p>
-</section>
+<div class="category-strip">
+    <div class="category-scroll">
+        <button class="cat-btn active" data-category="">All Shows</button>
+        <button class="cat-btn" data-category="Morning Joe">Morning Joe</button>
+        <button class="cat-btn" data-category="Chris Jansing Reports">Chris Jansing</button>
+        <button class="cat-btn" data-category="Katy Tur Reports">Katy Tur</button>
+        <button class="cat-btn" data-category="Deadline: White House">Deadline: White House</button>
+        <button class="cat-btn" data-category="The Beat With Ari Melber">The Beat</button>
+        <button class="cat-btn" data-category="The Weeknight">The Weeknight</button>
+        <button class="cat-btn" data-category="All In with Chris Hayes">All In</button>
+        <button class="cat-btn" data-category="The Rachel Maddow Show">Rachel Maddow</button>
+        <button class="cat-btn" data-category="The Briefing with Jen Psaki">Jen Psaki</button>
+        <button class="cat-btn" data-category="The Last Word with Lawrence O'Donnell">Lawrence O'Donnell</button>
+        <button class="cat-btn" data-category="The 11th Hour with Stephanie Ruhle">11th Hour</button>
+        <button class="cat-btn" data-category="The Weekend">The Weekend</button>
+        <button class="cat-btn" data-category="Velshi">Velshi</button>
+        <button class="cat-btn" data-category="Alex Witt Reports">Alex Witt</button>
+        <button class="cat-btn" data-category="PoliticsNation with Al Sharpton">PoliticsNation</button>
+        <button class="cat-btn" data-category="The Weekend: Primetime">Weekend Primetime</button>
+    </div>
+</div>
 
-<div class="filters">
-    <button class="filter-btn active" data-category="">All Posts</button>
-    <button class="filter-btn" data-category="24">Category 24</button>
-    <button class="filter-btn" data-category="39">Category 39</button>
-    <button class="filter-btn" data-category="100">Category 100</button>
+<div class="hero">
+    <div>
+        <h1>Latest Coverage</h1>
+        <p>Auto-updated every 45 minutes</p>
+    </div>
+    <select class="sort-select" id="sort-select">
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+    </select>
 </div>
 
 <div id="posts-grid" class="posts-grid">
-    <div class="loading">Loading posts...</div>
+    <div class="loading"> </div>
 </div>
 
 <div id="pagination" class="pagination"></div>
@@ -27,30 +47,38 @@
     let currentSort = 'newest';
 
     async function loadPosts(page = 1, category = '', sort = 'newest') {
-        const grid = document.getElementById('posts-grid');
-        grid.innerHTML = '<div class="loading">Loading posts...</div>';
+        document.getElementById('posts-grid').innerHTML = '<div class="loading"> </div>';
 
         try {
             let url = `/api/posts?page=${page}&limit=12&sort=${sort}`;
-            if (category) url += `&category=${category}`;
+            if (category) url += `&category=${encodeURIComponent(category)}`;
 
             const res = await fetch(url);
             const data = await res.json();
 
-            if (data.posts.length === 0) {
-                grid.innerHTML = '<div class="no-posts">No posts found.</div>';
+            if (!data.posts || data.posts.length === 0) {
+                document.getElementById('posts-grid').innerHTML = '<div class="no-posts">No posts found for this show yet.</div>';
                 document.getElementById('pagination').innerHTML = '';
                 return;
             }
 
-            grid.innerHTML = data.posts.map(post => `
+            document.getElementById('posts-grid').innerHTML = data.posts.map(post => `
                 <article class="post-card">
                     <a href="/post/${post.id}" class="post-card-link">
+                        <div class="post-card-thumb">
+                            ${post.thumbnail_url
+                                ? `<img src="${post.thumbnail_url}" alt="" loading="lazy">`
+                                : `<div class="thumb-placeholder">📺</div>`
+                            }
+                        </div>
                         <div class="post-card-body">
-                            <h2 class="post-card-title">${escapeHtml(post.title)}</h2>
-                            <p class="post-card-excerpt">${getExcerpt(post.content)}</p>
+                            ${post.categories && post.categories.length
+                                ? `<div class="post-card-show">${escHtml(post.categories[0])}</div>`
+                                : ''
+                            }
+                            <h2 class="post-card-title">${escHtml(post.title)}</h2>
                             <div class="post-card-meta">
-                                <span class="post-date">${formatDate(post.created_at)}</span>
+                                <span>${fmtDate(post.created_at)}</span>
                                 ${post.rumble_link ? '<span class="has-video">▶ Video</span>' : ''}
                             </div>
                         </div>
@@ -59,51 +87,54 @@
             `).join('');
 
             renderPagination(data.page, data.pages);
+
         } catch (err) {
-            grid.innerHTML = '<div class="error">Failed to load posts. Please try again.</div>';
+            document.getElementById('posts-grid').innerHTML = '<div class="error">Failed to load posts. Please try again.</div>';
         }
     }
 
     function renderPagination(current, total) {
         const el = document.getElementById('pagination');
         if (total <= 1) { el.innerHTML = ''; return; }
-
-        let html = '';
-        if (current > 1) html += `<button onclick="changePage(${current - 1})">← Prev</button>`;
-        html += `<span>Page ${current} of ${total}</span>`;
-        if (current < total) html += `<button onclick="changePage(${current + 1})">Next →</button>`;
-        el.innerHTML = html;
+        let h = '';
+        if (current > 1) h += `<button onclick="changePage(${current - 1})">← Prev</button>`;
+        h += `<span>Page ${current} of ${total}</span>`;
+        if (current < total) h += `<button onclick="changePage(${current + 1})">Next →</button>`;
+        el.innerHTML = h;
     }
 
-    function changePage(page) {
-        currentPage = page;
+    function changePage(p) {
+        currentPage = p;
         loadPosts(currentPage, currentCategory, currentSort);
-        window.scrollTo(0, 0);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function getExcerpt(html) {
-        const text = html.replace(/<[^>]*>/g, '');
-        return text.length > 120 ? text.slice(0, 120) + '...' : text;
-    }
-
-    function escapeHtml(str) {
+    function escHtml(s) {
         const d = document.createElement('div');
-        d.textContent = str;
+        d.textContent = s;
         return d.innerHTML;
     }
 
-    function formatDate(ts) {
-        return new Date(ts).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    function fmtDate(ts) {
+        return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
 
-    document.querySelectorAll('.filter-btn').forEach(btn => {
+    // Category buttons
+    document.querySelectorAll('.cat-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentCategory = btn.dataset.category;
             currentPage = 1;
             loadPosts(currentPage, currentCategory, currentSort);
         });
+    });
+
+    // Sort select
+    document.getElementById('sort-select').addEventListener('change', e => {
+        currentSort = e.target.value;
+        currentPage = 1;
+        loadPosts(currentPage, currentCategory, currentSort);
     });
 
     loadPosts();

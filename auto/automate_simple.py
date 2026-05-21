@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Simple WordPress to Custom Website Automation
-Send posts to your website every 45 minutes
+WordPress → Custom Website Automation
+Fetches latest post (with thumbnail + category names) and publishes it every 45 minutes.
 """
 
 import requests
@@ -11,148 +11,167 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 
-# Load configuration from .env file
 load_dotenv()
 
 WEBSITE_URL = os.getenv('WEBSITE_URL', 'https://your-domain.vercel.app')
 API_KEY = os.getenv('API_KEY', 'your_api_key_here')
 WORDPRESS_URL = os.getenv('WORDPRESS_URL', 'https://thuyance.com')
 
+# Track last published post ID to avoid duplicates
+LAST_ID_FILE = '/tmp/last_post_id.txt' if os.getenv('VERCEL') else 'last_post_id.txt'
 
-def send_post_to_website(post_data):
-    """Send a post to your website API"""
-    
-    headers = {
-        'Authorization': f'Bearer {API_KEY}',
-        'Content-Type': 'application/json'
-    }
-    
+
+def get_last_published_id():
     try:
-        print(f"📤 Sending post to: {WEBSITE_URL}/api/posts")
-        
-        response = requests.post(
-            f'{WEBSITE_URL}/api/posts',
-            headers=headers,
-            json=post_data,
-            timeout=10
-        )
-        
-        if response.status_code == 201:
-            result = response.json()
-            print(f"✅ SUCCESS! Post created with ID: {result['id']}")
-            return True
-        else:
-            print(f"❌ FAILED! Status code: {response.status_code}")
-            print(f"Response: {response.text}")
-            return False
-    
-    except Exception as e:
-        print(f"❌ ERROR: {e}")
-        return False
+        with open(LAST_ID_FILE, 'r') as f:
+            return int(f.read().strip())
+    except Exception:
+        return 0
+
+
+def save_last_published_id(post_id):
+    try:
+        with open(LAST_ID_FILE, 'w') as f:
+            f.write(str(post_id))
+    except Exception:
+        pass
 
 
 def get_wordpress_post():
-    """Fetch latest post from WordPress"""
-    
+    """Fetch the latest post from WordPress with embedded image and categories."""
     try:
-        print(f"📥 Fetching post from: {WORDPRESS_URL}")
-        
-        # Get latest post from WordPress API
-        url = f'{WORDPRESS_URL}/wp-json/wp/v2/posts?per_page=1&order=desc'
-        response = requests.get(url, timeout=10)
-        
+        print(f"📥 Fetching latest post from: {WORDPRESS_URL}")
+
+        # _embed gives us featured image URL and category names in one request
+        url = f'{WORDPRESS_URL}/wp-json/wp/v2/posts?per_page=1&order=desc&_embed'
+        response = requests.get(url, timeout=15)
+
         if response.status_code != 200:
             print(f"❌ Failed to fetch from WordPress: {response.status_code}")
             return None
-        
+
         posts = response.json()
         if not posts:
             print("ℹ️ No posts found")
             return None
-        
+
         post = posts[0]
-        
-        # Extract title
+        wp_post_id = post['id']
+
+        # Skip if already published
+        if wp_post_id <= get_last_published_id():
+            print(f"ℹ️ Post {wp_post_id} already published. Nothing new.")
+            return None
+
+        # Title and content
         title = post['title']['rendered']
-        
-        # Extract content
         content = post['content']['rendered']
-        
-        # Extract Rumble link using regex
+
+        # Rumble embed link
         rumble_link = ''
         rumble_match = re.search(r'https://rumble\.com/embed/([a-zA-Z0-9]+)', content)
         if rumble_match:
             rumble_link = f'https://rumble.com/embed/{rumble_match.group(1)}/'
-        
-        # Get categories
-        categories = post.get('categories', [])
-        
-        # Get featured image ID
-        featured_image_id = post.get('featured_media', 0)
-        
-        # Extract excerpt for metadata
-        excerpt = post.get('excerpt', {}).get('rendered', '').replace('<p>', '').replace('</p>', '')
-        
+
+        # Thumbnail URL from embedded media
+        thumbnail_url = ''
+        try:
+            media = post['_embedded']['wp:featuredmedia'][0]
+            # Prefer medium_large, fall back to full
+            sizes = media.get('media_details', {}).get('sizes', {})
+            thumbnail_url = (
+                sizes.get('medium_large', {}).get('source_url') or
+                sizes.get('large', {}).get('source_url') or
+                sizes.get('medium', {}).get('source_url') or
+                media.get('source_url', '')
+            )
+        except (KeyError, IndexError, TypeError):
+            pass
+
+        # Category names from embedded terms
+        category_names = []
+        try:
+            for term in post['_embedded']['wp:term'][0]:
+                if term.get('taxonomy') == 'category' and term.get('name') != 'Uncategorized':
+                    category_names.append(term['name'])
+        except (KeyError, IndexError, TypeError):
+            pass
+
+        # Excerpt for metadata
+        excerpt = re.sub(r'<[^>]+>', '', post.get('excerpt', {}).get('rendered', '')).strip()
+
         print(f"✅ Found post: {title}")
-        
+        print(f"   Categories: {category_names}")
+        print(f"   Thumbnail: {'yes' if thumbnail_url else 'none'}")
+
         return {
+            'wp_post_id': wp_post_id,
             'title': title,
             'content': content,
             'rumble_link': rumble_link,
-            'categories': categories,
-            'featured_image_id': featured_image_id,
+            'thumbnail_url': thumbnail_url,
+            'categories': category_names,
+            'featured_image_id': post.get('featured_media', 0),
             'metadata': {
                 'rank_math_description': excerpt,
-                'focus_keyword': 'news'
+                'focus_keyword': category_names[0] if category_names else 'news'
             }
         }
-    
+
     except Exception as e:
         print(f"❌ ERROR fetching WordPress: {e}")
         return None
 
 
-def send_test_post():
-    """Send a test post to verify everything works"""
-    
-    test_post = {
-        'title': f'Test Post - {datetime.now().strftime("%Y-%m-%d %H:%M")}',
-        'content': '<p><iframe src="https://rumble.com/embed/test/"></iframe></p>',
-        'rumble_link': 'https://rumble.com/embed/test/',
-        'categories': [24, 39],
-        'featured_image_id': 100,
-        'metadata': {
-            'rank_math_description': 'Test post from Python automation',
-            'focus_keyword': 'test'
-        }
+def send_post_to_website(post_data):
+    """Send a post to your website API."""
+    headers = {
+        'Authorization': f'Bearer {API_KEY}',
+        'Content-Type': 'application/json'
     }
-    
-    print("📝 Sending test post...")
-    return send_post_to_website(test_post)
+
+    payload = {k: v for k, v in post_data.items() if k != 'wp_post_id'}
+
+    try:
+        print(f"📤 Sending to: {WEBSITE_URL}/api/posts")
+        response = requests.post(
+            f'{WEBSITE_URL}/api/posts',
+            headers=headers,
+            json=payload,
+            timeout=15
+        )
+
+        if response.status_code == 201:
+            result = response.json()
+            print(f"✅ Published! Site post ID: {result['id']}")
+            return True
+        else:
+            print(f"❌ Failed! Status: {response.status_code} — {response.text}")
+            return False
+
+    except Exception as e:
+        print(f"❌ ERROR sending post: {e}")
+        return False
 
 
 def main():
-    """Main automation function"""
-    
     print("\n" + "="*50)
-    print(f"⏰ [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Starting automation")
+    print(f"⏰ [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Automation running")
     print("="*50 + "\n")
-    
-    # Fetch latest WordPress post
+
     post_data = get_wordpress_post()
-    
+
     if not post_data:
-        print("\n❌ Could not fetch post. Check your WordPress URL and API access.\n")
         return False
-    
-    # Send to your website
+
     success = send_post_to_website(post_data)
-    
+
     if success:
-        print("\n✅ Automation completed successfully!\n")
+        save_last_published_id(post_data['wp_post_id'])
+        print("\n✅ Done!\n")
     else:
-        print("\n❌ Automation failed. Check your website URL and API key.\n")
-    
+        print("\n❌ Failed. Check URL and API key.\n")
+
     return success
 
 

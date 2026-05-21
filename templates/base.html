@@ -3,22 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}News Hub{% endblock %}</title>
+    <title>{% block title %}NewsHub{% endblock %}</title>
     <link rel="stylesheet" href="/static/style.css">
-    <meta name="description" content="{% block description %}Your daily news and updates{% endblock %}">
+    <meta name="description" content="{% block description %}Latest news and political coverage{% endblock %}">
 </head>
 <body>
     <header class="site-header">
         <div class="container">
             <div class="header-inner">
-                <a href="/" class="site-logo">News Hub</a>
+                <a href="/" class="site-logo">
+                    News<span class="logo-dot">●</span>Hub
+                </a>
                 <nav class="site-nav">
                     <a href="/">Home</a>
                     <a href="/admin">Admin</a>
                 </nav>
                 <form class="header-search" action="/search" method="get">
-                    <input type="text" name="q" placeholder="Search posts..." value="{{ request.args.get('q', '') }}">
-                    <button type="submit">Search</button>
+                    <input type="text" name="q" placeholder="Search shows, topics..." value="{{ request.args.get('q', '') }}">
+                    <button type="submit">🔍</button>
                 </form>
             </div>
         </div>
@@ -32,7 +34,7 @@
 
     <footer class="site-footer">
         <div class="container">
-            <p>&copy; 2024 News Hub. All rights reserved.</p>
+            <p>© 2024 NewsHub &mdash; All rights reserved.</p>
         </div>
     </footer>
 </body>

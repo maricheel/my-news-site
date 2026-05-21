@@ -1,21 +1,20 @@
 {% extends "base.html" %}
-
-{% block title %}Search - News Hub{% endblock %}
+{% block title %}Search — NewsHub{% endblock %}
 
 {% block content %}
 <div class="search-page">
-    <h1>Search Posts</h1>
+    <h1>Search</h1>
 
     <form class="search-form" action="/search" method="get">
-        <input type="text" name="q" value="{{ query }}" placeholder="Search posts..." autofocus>
+        <input type="text" name="q" value="{{ query }}" placeholder="Search shows, topics, guests..." autofocus>
         <button type="submit">Search</button>
     </form>
 
     <div id="results-container">
         {% if query %}
-            <div class="loading">Searching...</div>
+            <div class="loading"> </div>
         {% else %}
-            <p class="search-hint">Enter a search term above to find posts.</p>
+            <div class="search-hint">Enter a term above to search all posts.</div>
         {% endif %}
     </div>
 </div>
@@ -26,7 +25,7 @@
 
     async function doSearch() {
         try {
-            const res = await fetch(`/api/posts/search?q=${encodeURIComponent(q)}&limit=20`);
+            const res = await fetch(`/api/posts/search?q=${encodeURIComponent(q)}&limit=24`);
             const data = await res.json();
 
             if (data.error) {
@@ -35,21 +34,31 @@
             }
 
             if (!data.posts.length) {
-                document.getElementById('results-container').innerHTML = `<div class="no-posts">No results for "<strong>${escapeHtml(q)}</strong>".</div>`;
+                document.getElementById('results-container').innerHTML =
+                    `<div class="search-hint-empty">No results for "<strong>${escHtml(q)}</strong>". Try a different term.</div>`;
                 return;
             }
 
             document.getElementById('results-container').innerHTML = `
-                <p class="results-count">${data.count} result${data.count !== 1 ? 's' : ''} for "<strong>${escapeHtml(q)}</strong>"</p>
+                <p class="results-count">${data.count} result${data.count !== 1 ? 's' : ''} for "<strong>${escHtml(q)}</strong>"</p>
                 <div class="posts-grid">
                     ${data.posts.map(post => `
                         <article class="post-card">
                             <a href="/post/${post.id}" class="post-card-link">
+                                <div class="post-card-thumb">
+                                    ${post.thumbnail_url
+                                        ? `<img src="${post.thumbnail_url}" alt="" loading="lazy">`
+                                        : `<div class="thumb-placeholder">📺</div>`
+                                    }
+                                </div>
                                 <div class="post-card-body">
-                                    <h2 class="post-card-title">${escapeHtml(post.title)}</h2>
-                                    <p class="post-card-excerpt">${getExcerpt(post.content)}</p>
+                                    ${post.categories && post.categories.length
+                                        ? `<div class="post-card-show">${escHtml(post.categories[0])}</div>`
+                                        : ''
+                                    }
+                                    <h2 class="post-card-title">${escHtml(post.title)}</h2>
                                     <div class="post-card-meta">
-                                        <span class="post-date">${formatDate(post.created_at)}</span>
+                                        <span>${fmtDate(post.created_at)}</span>
                                         ${post.rumble_link ? '<span class="has-video">▶ Video</span>' : ''}
                                     </div>
                                 </div>
@@ -63,19 +72,14 @@
         }
     }
 
-    function getExcerpt(html) {
-        const text = html.replace(/<[^>]*>/g, '');
-        return text.length > 120 ? text.slice(0, 120) + '...' : text;
-    }
-
-    function escapeHtml(str) {
+    function escHtml(s) {
         const d = document.createElement('div');
-        d.textContent = str;
+        d.textContent = s;
         return d.innerHTML;
     }
 
-    function formatDate(ts) {
-        return new Date(ts).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    function fmtDate(ts) {
+        return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
 
     doSearch();

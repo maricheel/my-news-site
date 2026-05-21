@@ -42,16 +42,22 @@ def init_db():
             categories TEXT,
             metadata TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            source TEXT DEFAULT 'automation'
+            source TEXT DEFAULT 'automation',
+            thumbnail_url TEXT
         )
     ''')
+    # Migrate existing databases that don't have thumbnail_url yet
+    try:
+        c.execute('ALTER TABLE posts ADD COLUMN thumbnail_url TEXT')
+    except Exception:
+        pass
     conn.commit()
     conn.close()
 
 # Helper: Get database connection
 def get_db():
     conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row  # Return rows as dictionaries
+    conn.row_factory = sqlite3.Row
     return conn
 
 # Helper: Convert database row to dictionary
@@ -67,7 +73,8 @@ def row_to_dict(row):
         'categories': json.loads(row[5]) if row[5] else [],
         'metadata': json.loads(row[6]) if row[6] else {},
         'created_at': row[7],
-        'source': row[8]
+        'source': row[8],
+        'thumbnail_url': row[9] if len(row) > 9 else None
     }
 
 # Decorator: Require API key for protected endpoints
@@ -230,22 +237,23 @@ def create_post():
         content = data.get('content')
         rumble_link = data.get('rumble_link', '')
         featured_image_id = data.get('featured_image_id')
-        categories = data.get('categories', [])  # Should be a list like [24, 39, 100]
-        metadata = data.get('metadata', {})  # Dict with rank_math_description, focus_keyword, etc.
+        categories = data.get('categories', [])
+        metadata = data.get('metadata', {})
         source = data.get('source', 'automation')
-        
+        thumbnail_url = data.get('thumbnail_url', '')
+
         # Convert lists/dicts to JSON strings for storage
         categories_json = json.dumps(categories)
         metadata_json = json.dumps(metadata)
-        
+
         # Insert into database
         conn = get_db()
         c = conn.cursor()
-        
+
         c.execute('''
-            INSERT INTO posts (title, content, rumble_link, featured_image_id, categories, metadata, source)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (title, content, rumble_link, featured_image_id, categories_json, metadata_json, source))
+            INSERT INTO posts (title, content, rumble_link, featured_image_id, categories, metadata, source, thumbnail_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (title, content, rumble_link, featured_image_id, categories_json, metadata_json, source, thumbnail_url))
         
         post_id = c.lastrowid
         conn.commit()
