@@ -26,11 +26,12 @@ USE_POSTGRES  = bool(DATABASE_URL)
 if USE_POSTGRES:
     import psycopg2
     import psycopg2.extras
-    PH = '%s'   # postgres placeholder
+    PH = '%s'
 else:
     import sqlite3
-    PH = '?'    # sqlite placeholder
-    _sqlite_path = os.path.join(_base_dir, 'database.db')
+    PH = '?'
+    # /tmp is the only writable directory on Vercel serverless
+    _sqlite_path = '/tmp/database.db' if os.getenv('VERCEL') else os.path.join(_base_dir, 'database.db')
 
 
 def get_db():
