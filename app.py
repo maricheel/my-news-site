@@ -10,38 +10,43 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__)
-CORS(app)  # Enable cross-origin requests from frontend
+# Resolve paths relative to this file so Flask finds templates/static
+# whether running locally or from api/index.py on Vercel
+_base_dir = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(
+    __name__,
+    template_folder=os.path.join(_base_dir, 'templates'),
+    static_folder=os.path.join(_base_dir, 'static'),
+)
+CORS(app)
 
 # Security
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-change-this')
 API_KEY = os.getenv('API_KEY', 'your-api-key-change-this')
-DATABASE = 'database.db'
+
+# Vercel's filesystem is read-only except /tmp
+DATABASE = '/tmp/database.db' if os.getenv('VERCEL') else os.path.join(_base_dir, 'database.db')
 
 # Initialize database
 def init_db():
-    """Create database and tables if they don't exist"""
-    if not os.path.exists(DATABASE):
-        conn = sqlite3.connect(DATABASE)
-        c = conn.cursor()
-        
-        c.execute('''
-            CREATE TABLE posts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                content TEXT NOT NULL,
-                rumble_link TEXT,
-                featured_image_id INTEGER,
-                categories TEXT,
-                metadata TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                source TEXT DEFAULT 'automation'
-            )
-        ''')
-        
-        conn.commit()
-        conn.close()
-        print("Database initialized!")
+    conn = sqlite3.connect(DATABASE)
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            rumble_link TEXT,
+            featured_image_id INTEGER,
+            categories TEXT,
+            metadata TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            source TEXT DEFAULT 'automation'
+        )
+    ''')
+    conn.commit()
+    conn.close()
 
 # Helper: Get database connection
 def get_db():
