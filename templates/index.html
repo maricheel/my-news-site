@@ -214,6 +214,7 @@ function postToVideo(post) {
     embed_src: embedSrc,
     content: post.content,
     categories: post.categories || [],
+    created_at: post.created_at || null,
   };
 }
 
@@ -345,17 +346,22 @@ function VideoCard({ video, onOpen, locked }) {
 }
 
 // ── Related card (sidebar) ────────────────────────────────────────────────
-function RelatedCard({ video, onOpen, active }) {
+function RelatedCard({ video, onOpen, active, locked }) {
   return (
     <button type="button" onClick={() => onOpen(video)}
       className={`group w-full text-left flex gap-3 p-2 rounded-md transition ${active ? 'bg-ink-850 ring-1 ring-ember/30' : 'hover:bg-ink-900'}`}>
       <div className="relative w-36 shrink-0 overflow-hidden rounded ring-1 ring-white/5">
         <Thumbnail video={video} overlay={false} />
         <div className="absolute inset-0 bg-gradient-to-t from-ink-950/70 to-transparent" />
+        {locked && (
+          <div className="absolute inset-0 flex items-center justify-center bg-ink-950/60 backdrop-blur-[2px]">
+            <Icon name="lock" size={16} className="text-ember" />
+          </div>
+        )}
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-ember-soft truncate">{video.category}</div>
-        <div className="text-[13px] leading-snug text-ink-100 line-clamp-2 mt-0.5 group-hover:text-ember-soft transition-colors">{video.title}</div>
+        <div className={`text-[13px] leading-snug line-clamp-2 mt-0.5 transition-colors ${locked ? 'text-ink-500' : 'text-ink-100 group-hover:text-ember-soft'}`}>{video.title}</div>
         <div className="text-[11px] text-ink-500 mt-1 font-mono">{video.uploaded}</div>
       </div>
     </button>
@@ -380,13 +386,24 @@ function CategoryChip({ label, active, count, onClick }) {
 }
 
 // ── Watch view ────────────────────────────────────────────────────────────
-function WatchView({ video, all, onOpen, onClose }) {
-  const related = useMemo(() =>
-    all.filter(v => v.id !== video.id)
-      .sort((a, b) => (a.category === video.category ? -1 : 0) - (b.category === video.category ? -1 : 0))
-      .slice(0, 10),
-    [video, all]
-  );
+function WatchView({ video, all, onOpen, onClose, isLocked }) {
+  // Same calendar day as the video being watched
+  const videoDay = useMemo(() => {
+    if (!video.created_at) return null;
+    const d = new Date(video.created_at);
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  }, [video.created_at]);
+
+  const related = useMemo(() => {
+    return all
+      .filter(v => {
+        if (v.id === video.id) return false;
+        if (!videoDay || !v.created_at) return false;
+        const d = new Date(v.created_at);
+        return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}` === videoDay;
+      })
+      .slice(0, 10);
+  }, [video, all, videoDay]);
 
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, [video.id]);
 
@@ -457,10 +474,20 @@ function WatchView({ video, all, onOpen, onClose }) {
 
         {/* Sidebar */}
         <aside className="lg:sticky lg:top-32 self-start">
-          <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-ink-500 mb-3 px-1">Up Next</div>
-          <div className="space-y-1">
-            {related.map(v => <RelatedCard key={v.id} video={v} onOpen={onOpen} active={v.id === video.id} />)}
+          <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-ink-500 mb-3 px-1">
+            Same Day — {videoDay ? new Date(video.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Up Next'}
           </div>
+          {related.length === 0 ? (
+            <div className="rounded-lg bg-ink-900/40 ring-1 ring-ink-800 px-4 py-6 text-center text-[13px] text-ink-500">
+              No other shows from this date.
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {related.map(v => (
+                <RelatedCard key={v.id} video={v} onOpen={onOpen} active={v.id === video.id} locked={isLocked ? isLocked(v) : false} />
+              ))}
+            </div>
+          )}
         </aside>
       </div>
     </div>
@@ -775,14 +802,8 @@ function SectionHeader({ kicker, title }) {
 }
 
 // ── Browse view ───────────────────────────────────────────────────────────
-function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, featured, freeIds, premium, userEmail }) {
+function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, featured, isLocked, premium, userEmail }) {
   const showHero = activeCategory === 'All Shows' && !query && featured;
-
-  const handleOpen = useCallback(v => {
-    const locked = premium && !userEmail && freeIds && !freeIds.has(v.id);
-    if (locked) { onOpenAuth(); return; }
-    onOpen(v);
-  }, [premium, userEmail, freeIds, onOpen, onOpenAuth]);
 
   return (
     <div className="space-y-12">
@@ -822,10 +843,9 @@ function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, feature
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-5 gap-y-10">
-            {videos.map(v => {
-              const locked = premium && !userEmail && freeIds && !freeIds.has(v.id);
-              return <VideoCard key={v.id} video={v} onOpen={handleOpen} locked={locked} />;
-            })}
+            {videos.map(v => (
+              <VideoCard key={v.id} video={v} onOpen={onOpen} locked={isLocked ? isLocked(v) : false} />
+            ))}
           </div>
         )}
       </section>
@@ -966,17 +986,38 @@ function App() {
     }).catch(() => setLoading(false));
   }, []);
 
-  // Free IDs = newest 20% of ALL videos (regardless of filter)
+  // Free IDs = random 20%, seeded by today's date — stable all day, different tomorrow
   const freeIds = useMemo(() => {
-    if (!premium) return null;
-    const count = Math.max(1, Math.ceil(videos.length * 0.2));
-    return new Set(videos.slice(0, count).map(v => v.id));
+    if (!premium || videos.length === 0) return null;
+    // Date seed: YYYYMMDD — same shuffle for the whole day
+    const t = new Date();
+    let s = t.getFullYear() * 10000 + (t.getMonth() + 1) * 100 + t.getDate();
+    // Fisher-Yates shuffle using a simple LCG
+    const ids = videos.map(v => v.id);
+    for (let i = ids.length - 1; i > 0; i--) {
+      s = (s * 1664525 + 1013904223) | 0;
+      const j = ((s >>> 0) % (i + 1));
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+    }
+    const count = Math.max(1, Math.ceil(ids.length * 0.2));
+    return new Set(ids.slice(0, count));
   }, [videos, premium]);
 
   const handleUserLogout = async () => {
     await fetch('/api/auth/user-logout', { method: 'POST' }).catch(() => {});
     setUserEmail('');
   };
+
+  // Single locked-check used by ALL open handlers (browse grid + watch related)
+  const isLocked = useCallback(v =>
+    !!(premium && !userEmail && freeIds && !freeIds.has(v.id)),
+    [premium, userEmail, freeIds]
+  );
+
+  const handlePremiumOpen = useCallback(v => {
+    if (isLocked(v)) { setAuthModal(true); return; }
+    setPlaying(v);
+  }, [isLocked]);
 
   // Scroll to top whenever the active category changes
   useEffect(() => {
@@ -1035,13 +1076,17 @@ function App() {
             Loading segments…
           </div>
         ) : playing ? (
-          <WatchView video={playing} all={videos} onOpen={setPlaying} onClose={() => setPlaying(null)} />
+          <WatchView
+            video={playing} all={videos}
+            onOpen={handlePremiumOpen} onClose={() => setPlaying(null)}
+            isLocked={isLocked}
+          />
         ) : (
           <BrowseView
             videos={filtered} activeCategory={active} query={query}
-            onOpen={setPlaying} onOpenAuth={() => setAuthModal(true)}
+            onOpen={handlePremiumOpen} onOpenAuth={() => setAuthModal(true)}
             featured={videos[0]}
-            premium={premium} userEmail={userEmail} freeIds={freeIds}
+            premium={premium} userEmail={userEmail} isLocked={isLocked}
           />
         )}
       </main>
