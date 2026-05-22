@@ -6,6 +6,15 @@
 <title>msnow.click</title>
 <link rel="icon" type="image/png" href="/static/images/favicon.png">
 
+<!-- PWA -->
+<link rel="manifest" href="/static/manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="msnow">
+<meta name="theme-color" content="#1c1916" id="theme-color-meta">
+<link rel="apple-touch-icon" href="/static/images/favicon.png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -126,7 +135,15 @@
 </style>
 <script>
   /* Apply stored theme before first paint to avoid flash */
-  (function(){ try{ if(localStorage.getItem('theme')==='light') document.documentElement.classList.add('light'); }catch(e){} })();
+  (function(){
+    try{ if(localStorage.getItem('theme')==='light') document.documentElement.classList.add('light'); }catch(e){}
+  })();
+  /* Register service worker */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+    });
+  }
 </script>
 </head>
 <body class="min-h-screen">
@@ -1096,6 +1113,9 @@ function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('light', theme === 'light');
     try { localStorage.setItem('theme', theme); } catch {}
+    // Keep Android status bar colour in sync
+    const meta = document.getElementById('theme-color-meta');
+    if (meta) meta.setAttribute('content', theme === 'light' ? '#f5f4f1' : '#1c1916');
   }, [theme]);
 
   const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
