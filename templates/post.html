@@ -44,6 +44,16 @@
     };
     const host = hosts[show] || 'Newsroom';
 
+    // Use Rumble link, or fall back to any iframe src found in the content
+    function extractEmbedSrc(html) {
+      const m = html.match(/src=["']([^"']+)["']/i);
+      if (!m) return null;
+      let src = m[1];
+      if (src.startsWith('//')) src = 'https:' + src;
+      return src;
+    }
+    const embedSrc = post.rumble_link || extractEmbedSrc(post.content) || '';
+
     wrap.innerHTML = `
       <a href="/" class="inline-flex items-center gap-2 mb-6 text-[13px] text-ink-400 hover:text-ink-100 transition">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m19 12H5M12 5l-7 7 7 7"/></svg>
@@ -63,10 +73,10 @@
           </div>
         </header>
 
-        ${post.rumble_link ? `
+        \${embedSrc ? \`
         <div class="w-full overflow-hidden rounded-xl ring-1 ring-white/10 mb-6 bg-black" style="aspect-ratio:16/9">
-          <iframe src="${post.rumble_link}" class="w-full h-full block" allowfullscreen frameborder="0" scrolling="no"></iframe>
-        </div>` : ''}
+          <iframe src="\${embedSrc}" class="w-full h-full block" allowfullscreen frameborder="0" scrolling="no"></iframe>
+        </div>\` : ''}
 
         <div class="rounded-xl bg-ink-900/60 ring-1 ring-ink-800 p-4 sm:p-6 md:p-8 min-w-0">
           <div class="prose-content text-[15px] sm:text-[16px] leading-relaxed text-ink-300 min-w-0">

@@ -137,21 +137,32 @@ function stripHtml(html) {
 }
 
 // Map API post → UI video object
+function extractEmbedSrc(html) {
+  // Pull the src from any <iframe> inside the WordPress content
+  const m = html.match(/src=["']([^"']+)["']/i);
+  if (!m) return null;
+  let src = m[1];
+  if (src.startsWith('//')) src = 'https:' + src;
+  return src;
+}
+
 function postToVideo(post) {
   const cat = post.categories?.[0] || 'General';
   const seed = post.id % PALETTES.length;
+  const embedSrc = post.rumble_link || extractEmbedSrc(post.content) || null;
   return {
     id: post.id,
     title: post.title,
     description: stripHtml(post.content).slice(0, 200),
     category: cat,
     host: HOSTS[cat] || 'Newsroom',
-    chip: post.rumble_link ? 'Video' : 'Report',
+    chip: embedSrc ? 'Video' : 'Report',
     isLive: false,
     uploaded: relTime(post.created_at),
     thumbnail_url: post.thumbnail_url || null,
     thumbnail: { palette: PALETTES[seed], seed: post.id },
     rumble_link: post.rumble_link || null,
+    embed_src: embedSrc,
     content: post.content,
     categories: post.categories || [],
   };
@@ -221,7 +232,7 @@ function Thumbnail({ video, ratio = '16/9', overlay = true }) {
             </div>
           </div>
           <div className="absolute right-3 top-3">
-            {video.rumble_link && (
+            {video.embed_src && (
               <span className="rounded-sm bg-ink-950/75 backdrop-blur-sm px-1.5 py-0.5 font-mono text-[10px] text-ink-100 ring-1 ring-white/10">▶ VIDEO</span>
             )}
           </div>
@@ -327,10 +338,10 @@ function WatchView({ video, all, onOpen, onClose }) {
       <div className="grid lg:grid-cols-[1fr_360px] gap-8">
         <div>
           {/* Player */}
-          {video.rumble_link && (
+          {video.embed_src && (
             <div className="w-full overflow-hidden rounded-lg bg-ink-950 ring-1 ring-white/10" style={{ aspectRatio: '16/9' }}>
               <iframe
-                src={video.rumble_link}
+                src={video.embed_src}
                 className="w-full h-full block"
                 allowFullScreen frameBorder="0" scrolling="no"
               />
@@ -529,7 +540,7 @@ function Hero({ featured, onOpen }) {
               <span className="relative inline-flex items-center justify-center w-5 h-5 rounded-full bg-ember text-ink-950">
                 <Icon name="play" size={11} strokeWidth={2.5} />
               </span>
-              {featured.rumble_link ? 'Watch video' : 'Read more'}
+              {featured.embed_src ? 'Watch video' : 'Read more'}
             </button>
           </div>
           <div className="mt-8 pt-6 border-t border-ink-800 grid grid-cols-3 gap-4 text-[12px]">
