@@ -1,110 +1,122 @@
 {% extends "base.html" %}
-{% block title %}Admin — NewsHub{% endblock %}
+{% block title %}Admin — NEWSGRID{% endblock %}
 
 {% block content %}
-<div class="admin-page">
-    <div class="admin-header">
-        <h1>Admin Dashboard</h1>
-    </div>
+<div class="max-w-[1000px] mx-auto">
 
-    <div id="stats-grid" class="stats-grid">
-        <div class="loading"> </div>
-    </div>
+  <div class="mb-8 pb-6 border-b border-ink-800">
+    <div class="font-mono text-[11px] uppercase tracking-[0.22em] text-ember-soft mb-2">Dashboard</div>
+    <h1 class="font-serif text-3xl text-ink-100">Admin</h1>
+  </div>
 
-    <div class="admin-section">
-        <h2>Recent Posts</h2>
-        <div id="recent-posts"></div>
+  <!-- Stats -->
+  <div id="stats" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-10">
+    <div class="flex items-center justify-center py-10 col-span-3 gap-3 text-ink-500">
+      <span class="inline-block w-4 h-4 border-2 border-ink-700 border-t-ember rounded-full spin"></span> Loading…
     </div>
+  </div>
 
-    <div class="admin-section">
-        <h2>Delete Post</h2>
-        <div class="delete-form">
-            <input type="number" id="delete-id" placeholder="Post ID" min="1" style="width:120px">
-            <input type="text" id="delete-api-key" placeholder="API Key" style="width:240px">
-            <button onclick="deletePost()" class="btn-danger">Delete</button>
-            <span id="delete-msg"></span>
-        </div>
+  <!-- Recent posts -->
+  <div class="mb-10">
+    <div class="font-mono text-[11px] uppercase tracking-[0.22em] text-ink-500 mb-4">Recent Segments</div>
+    <div id="recent" class="rounded-xl ring-1 ring-ink-800 overflow-hidden bg-ink-900/40">
+      <div class="flex items-center justify-center py-10 gap-3 text-ink-500">
+        <span class="inline-block w-4 h-4 border-2 border-ink-700 border-t-ember rounded-full spin"></span> Loading…
+      </div>
     </div>
+  </div>
+
+  <!-- Delete -->
+  <div>
+    <div class="font-mono text-[11px] uppercase tracking-[0.22em] text-ink-500 mb-4">Delete Segment</div>
+    <div class="rounded-xl ring-1 ring-ink-800 bg-ink-900/40 p-5 flex flex-wrap gap-3 items-center">
+      <input type="number" id="del-id" placeholder="Post ID" min="1"
+        class="w-28 bg-ink-900 ring-1 ring-ink-700 rounded-md px-3 py-2 text-[14px] text-ink-100 outline-none focus:ring-ember/50">
+      <input type="text" id="del-key" placeholder="API Key"
+        class="flex-1 min-w-[200px] bg-ink-900 ring-1 ring-ink-700 rounded-md px-3 py-2 text-[14px] text-ink-100 outline-none focus:ring-ember/50">
+      <button onclick="deletePost()"
+        class="h-10 px-5 rounded-md bg-live hover:bg-live/80 text-ink-100 font-medium text-[13px] transition">Delete</button>
+      <span id="del-msg" class="font-mono text-[12px] text-ink-500"></span>
+    </div>
+  </div>
 </div>
 
 <script>
-    async function loadStats() {
-        try {
-            const res = await fetch('/api/stats');
-            const data = await res.json();
-            document.getElementById('stats-grid').innerHTML = `
-                <div class="stat-card">
-                    <div class="stat-number">${data.total_posts}</div>
-                    <div class="stat-label">Total Posts</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${data.last_post ? fmtDate(data.last_post) : '—'}</div>
-                    <div class="stat-label">Last Post</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${Object.values(data.by_source || {}).reduce((a,b)=>a+b,0)}</div>
-                    <div class="stat-label">Automation Posts</div>
-                </div>
-            `;
-        } catch {
-            document.getElementById('stats-grid').innerHTML = '<div class="error">Failed to load stats.</div>';
-        }
-    }
+function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function relTime(ts){
+  const d=(Date.now()-new Date(ts))/1000;
+  if(d<3600) return Math.floor(d/60)+'m ago';
+  if(d<86400) return Math.floor(d/3600)+'h ago';
+  if(d<604800) return Math.floor(d/86400)+'d ago';
+  return new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
 
-    async function loadRecentPosts() {
-        try {
-            const res = await fetch('/api/posts?limit=15');
-            const data = await res.json();
-            if (!data.posts.length) {
-                document.getElementById('recent-posts').innerHTML = '<p style="color:var(--text-muted)">No posts yet.</p>';
-                return;
-            }
-            document.getElementById('recent-posts').innerHTML = `
-                <table class="admin-table">
-                    <thead><tr><th>ID</th><th>Title</th><th>Show</th><th>Date</th></tr></thead>
-                    <tbody>${data.posts.map(p => `
-                        <tr>
-                            <td>${p.id}</td>
-                            <td><a href="/post/${p.id}">${escHtml(p.title)}</a></td>
-                            <td>${p.categories && p.categories.length ? escHtml(p.categories[0]) : '—'}</td>
-                            <td>${fmtDate(p.created_at)}</td>
-                        </tr>`).join('')}
-                    </tbody>
-                </table>`;
-        } catch {
-            document.getElementById('recent-posts').innerHTML = '<div class="error">Failed to load posts.</div>';
-        }
-    }
+async function loadStats() {
+  try {
+    const r = await fetch('/api/stats');
+    const d = await r.json();
+    document.getElementById('stats').innerHTML = `
+      <div class="rounded-xl ring-1 ring-ink-800 bg-ink-900/40 p-6 text-center">
+        <div class="font-serif text-4xl text-ember mb-1">${d.total_posts}</div>
+        <div class="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-500">Total Segments</div>
+      </div>
+      <div class="rounded-xl ring-1 ring-ink-800 bg-ink-900/40 p-6 text-center">
+        <div class="font-serif text-xl text-ink-100 mb-1">${d.last_post ? relTime(d.last_post) : '—'}</div>
+        <div class="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-500">Last Published</div>
+      </div>
+      <div class="rounded-xl ring-1 ring-ink-800 bg-ink-900/40 p-6 text-center">
+        <div class="font-serif text-4xl text-ink-100 mb-1">${Object.values(d.by_source||{}).reduce((a,b)=>a+b,0)}</div>
+        <div class="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-500">Auto-Published</div>
+      </div>`;
+  } catch { document.getElementById('stats').innerHTML = '<div class="col-span-3 text-center py-8 text-ink-500">Failed to load stats.</div>'; }
+}
 
-    async function deletePost() {
-        const id = document.getElementById('delete-id').value;
-        const key = document.getElementById('delete-api-key').value;
-        const msg = document.getElementById('delete-msg');
-        if (!id || !key) { msg.textContent = 'Enter post ID and API key.'; return; }
-        try {
-            const res = await fetch(`/api/posts/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${key}` }
-            });
-            const data = await res.json();
-            msg.textContent = res.ok ? '✓ Deleted' : `Error: ${data.error}`;
-            if (res.ok) { loadStats(); loadRecentPosts(); }
-        } catch {
-            msg.textContent = 'Request failed.';
-        }
+async function loadRecent() {
+  try {
+    const r = await fetch('/api/posts?limit=15');
+    const d = await r.json();
+    if (!d.posts?.length) {
+      document.getElementById('recent').innerHTML = '<div class="text-center py-8 text-ink-500 text-sm">No segments yet.</div>';
+      return;
     }
+    document.getElementById('recent').innerHTML = `
+      <table class="w-full text-[13px]">
+        <thead>
+          <tr class="border-b border-ink-800">
+            <th class="text-left px-4 py-3 font-mono text-[10px] uppercase tracking-[0.16em] text-ink-600">ID</th>
+            <th class="text-left px-4 py-3 font-mono text-[10px] uppercase tracking-[0.16em] text-ink-600">Title</th>
+            <th class="text-left px-4 py-3 font-mono text-[10px] uppercase tracking-[0.16em] text-ink-600 hidden md:table-cell">Show</th>
+            <th class="text-left px-4 py-3 font-mono text-[10px] uppercase tracking-[0.16em] text-ink-600 hidden sm:table-cell">Published</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-ink-850">
+          ${d.posts.map(p=>`
+          <tr class="hover:bg-ink-900/60 transition">
+            <td class="px-4 py-3 font-mono text-ink-600">${p.id}</td>
+            <td class="px-4 py-3"><a href="/post/${p.id}" class="text-ink-100 hover:text-ember-soft transition line-clamp-1">${esc(p.title)}</a></td>
+            <td class="px-4 py-3 text-ink-400 hidden md:table-cell">${p.categories?.[0] ? esc(p.categories[0]) : '—'}</td>
+            <td class="px-4 py-3 font-mono text-[11px] text-ink-500 hidden sm:table-cell">${relTime(p.created_at)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch { document.getElementById('recent').innerHTML = '<div class="text-center py-8 text-ink-500">Failed to load segments.</div>'; }
+}
 
-    function escHtml(s) {
-        const d = document.createElement('div');
-        d.textContent = s;
-        return d.innerHTML;
-    }
+async function deletePost() {
+  const id = document.getElementById('del-id').value;
+  const key = document.getElementById('del-key').value;
+  const msg = document.getElementById('del-msg');
+  if (!id || !key) { msg.textContent = 'Enter ID and API key.'; return; }
+  try {
+    const r = await fetch(`/api/posts/${id}`, { method:'DELETE', headers:{'Authorization':`Bearer ${key}`} });
+    const d = await r.json();
+    msg.textContent = r.ok ? '✓ Deleted' : `Error: ${d.error}`;
+    msg.style.color = r.ok ? 'oklch(0.78 0.13 45)' : 'oklch(0.65 0.22 25)';
+    if (r.ok) { loadStats(); loadRecent(); }
+  } catch { msg.textContent = 'Request failed.'; }
+}
 
-    function fmtDate(ts) {
-        return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    }
-
-    loadStats();
-    loadRecentPosts();
+loadStats();
+loadRecent();
 </script>
 {% endblock %}

@@ -1,142 +1,718 @@
-{% extends "base.html" %}
-{% block title %}NewsHub — Latest Coverage{% endblock %}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NEWSGRID — Video</title>
 
-{% block content %}
-<div class="category-strip">
-    <div class="category-scroll">
-        <button class="cat-btn active" data-category="">All Shows</button>
-        <button class="cat-btn" data-category="Morning Joe">Morning Joe</button>
-        <button class="cat-btn" data-category="Chris Jansing Reports">Chris Jansing</button>
-        <button class="cat-btn" data-category="Katy Tur Reports">Katy Tur</button>
-        <button class="cat-btn" data-category="Deadline: White House">Deadline: White House</button>
-        <button class="cat-btn" data-category="The Beat With Ari Melber">The Beat</button>
-        <button class="cat-btn" data-category="The Weeknight">The Weeknight</button>
-        <button class="cat-btn" data-category="All In with Chris Hayes">All In</button>
-        <button class="cat-btn" data-category="The Rachel Maddow Show">Rachel Maddow</button>
-        <button class="cat-btn" data-category="The Briefing with Jen Psaki">Jen Psaki</button>
-        <button class="cat-btn" data-category="The Last Word with Lawrence O'Donnell">Lawrence O'Donnell</button>
-        <button class="cat-btn" data-category="The 11th Hour with Stephanie Ruhle">11th Hour</button>
-        <button class="cat-btn" data-category="The Weekend">The Weekend</button>
-        <button class="cat-btn" data-category="Velshi">Velshi</button>
-        <button class="cat-btn" data-category="Alex Witt Reports">Alex Witt</button>
-        <button class="cat-btn" data-category="PoliticsNation with Al Sharpton">PoliticsNation</button>
-        <button class="cat-btn" data-category="The Weekend: Primetime">Weekend Primetime</button>
-    </div>
-</div>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-<div class="hero">
-    <div>
-        <h1>Latest Coverage</h1>
-        <p>Auto-updated every 45 minutes</p>
-    </div>
-    <select class="sort-select" id="sort-select">
-        <option value="newest">Newest first</option>
-        <option value="oldest">Oldest first</option>
-    </select>
-</div>
-
-<div id="posts-grid" class="posts-grid">
-    <div class="loading"> </div>
-</div>
-
-<div id="pagination" class="pagination"></div>
-
+<script src="https://cdn.tailwindcss.com"></script>
 <script>
-    let currentPage = 1;
-    let currentCategory = '';
-    let currentSort = 'newest';
-
-    async function loadPosts(page = 1, category = '', sort = 'newest') {
-        document.getElementById('posts-grid').innerHTML = '<div class="loading"> </div>';
-
-        try {
-            let url = `/api/posts?page=${page}&limit=12&sort=${sort}`;
-            if (category) url += `&category=${encodeURIComponent(category)}`;
-
-            const res = await fetch(url);
-            const data = await res.json();
-
-            if (!data.posts || data.posts.length === 0) {
-                document.getElementById('posts-grid').innerHTML = '<div class="no-posts">No posts found for this show yet.</div>';
-                document.getElementById('pagination').innerHTML = '';
-                return;
-            }
-
-            document.getElementById('posts-grid').innerHTML = data.posts.map(post => `
-                <article class="post-card">
-                    <a href="/post/${post.id}" class="post-card-link">
-                        <div class="post-card-thumb">
-                            ${post.thumbnail_url
-                                ? `<img src="${post.thumbnail_url}" alt="" loading="lazy">`
-                                : `<div class="thumb-placeholder">📺</div>`
-                            }
-                        </div>
-                        <div class="post-card-body">
-                            ${post.categories && post.categories.length
-                                ? `<div class="post-card-show">${escHtml(post.categories[0])}</div>`
-                                : ''
-                            }
-                            <h2 class="post-card-title">${escHtml(post.title)}</h2>
-                            <div class="post-card-meta">
-                                <span>${fmtDate(post.created_at)}</span>
-                                ${post.rumble_link ? '<span class="has-video">▶ Video</span>' : ''}
-                            </div>
-                        </div>
-                    </a>
-                </article>
-            `).join('');
-
-            renderPagination(data.page, data.pages);
-
-        } catch (err) {
-            document.getElementById('posts-grid').innerHTML = '<div class="error">Failed to load posts. Please try again.</div>';
-        }
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Geist', 'system-ui', 'sans-serif'],
+          serif: ['"Instrument Serif"', 'Georgia', 'serif'],
+          mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+        },
+        colors: {
+          ink: {
+            950: 'oklch(0.14 0.008 65)',
+            900: 'oklch(0.17 0.009 65)',
+            850: 'oklch(0.20 0.010 65)',
+            800: 'oklch(0.24 0.011 65)',
+            700: 'oklch(0.32 0.011 65)',
+            600: 'oklch(0.45 0.011 65)',
+            500: 'oklch(0.58 0.011 70)',
+            400: 'oklch(0.70 0.010 75)',
+            300: 'oklch(0.82 0.008 80)',
+            200: 'oklch(0.90 0.006 80)',
+            100: 'oklch(0.96 0.005 85)',
+          },
+          ember: {
+            DEFAULT: 'oklch(0.72 0.18 38)',
+            soft: 'oklch(0.78 0.13 45)',
+            deep: 'oklch(0.55 0.18 32)',
+          },
+          live: 'oklch(0.65 0.22 25)',
+        },
+      }
     }
-
-    function renderPagination(current, total) {
-        const el = document.getElementById('pagination');
-        if (total <= 1) { el.innerHTML = ''; return; }
-        let h = '';
-        if (current > 1) h += `<button onclick="changePage(${current - 1})">← Prev</button>`;
-        h += `<span>Page ${current} of ${total}</span>`;
-        if (current < total) h += `<button onclick="changePage(${current + 1})">Next →</button>`;
-        el.innerHTML = h;
-    }
-
-    function changePage(p) {
-        currentPage = p;
-        loadPosts(currentPage, currentCategory, currentSort);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function escHtml(s) {
-        const d = document.createElement('div');
-        d.textContent = s;
-        return d.innerHTML;
-    }
-
-    function fmtDate(ts) {
-        return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    }
-
-    // Category buttons
-    document.querySelectorAll('.cat-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentCategory = btn.dataset.category;
-            currentPage = 1;
-            loadPosts(currentPage, currentCategory, currentSort);
-        });
-    });
-
-    // Sort select
-    document.getElementById('sort-select').addEventListener('change', e => {
-        currentSort = e.target.value;
-        currentPage = 1;
-        loadPosts(currentPage, currentCategory, currentSort);
-    });
-
-    loadPosts();
+  }
 </script>
-{% endblock %}
+
+<style>
+  html, body { background: oklch(0.14 0.008 65); }
+  body { font-family: 'Geist', system-ui, sans-serif; color: oklch(0.96 0.005 85); }
+  ::selection { background: oklch(0.72 0.18 38 / 0.35); }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: oklch(0.32 0.011 65); border-radius: 999px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  @keyframes pulseDot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.55;transform:scale(.85)} }
+  .live-dot { animation: pulseDot 1.6s ease-in-out infinite; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  .fade-up { animation: fadeUp 0.35s ease-out both; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .spin { animation: spin 0.8s linear infinite; }
+</style>
+</head>
+<body class="min-h-screen">
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+// ── Constants ─────────────────────────────────────────────────────────────
+const CATEGORIES = [
+  'All Shows',
+  'Morning Joe',
+  'Chris Jansing Reports',
+  'Katy Tur Reports',
+  'Deadline: White House',
+  'The Beat With Ari Melber',
+  'The Weeknight',
+  'All In with Chris Hayes',
+  'The Rachel Maddow Show',
+  'The Briefing with Jen Psaki',
+  'The Last Word with Lawrence O\'Donnell',
+  'The 11th Hour with Stephanie Ruhle',
+  'The Weekend',
+  'Velshi',
+  'Alex Witt Reports',
+  'PoliticsNation with Al Sharpton',
+  'The Weekend: Primetime',
+];
+
+const HOSTS = {
+  'Morning Joe': 'Joe & Mika',
+  'Chris Jansing Reports': 'Chris Jansing',
+  'Katy Tur Reports': 'Katy Tur',
+  'Deadline: White House': 'Nicolle Wallace',
+  'The Beat With Ari Melber': 'Ari Melber',
+  'The Weeknight': 'Symone, Alicia & Michael',
+  'All In with Chris Hayes': 'Chris Hayes',
+  'The Rachel Maddow Show': 'Rachel Maddow',
+  'The Briefing with Jen Psaki': 'Jen Psaki',
+  'The Last Word with Lawrence O\'Donnell': 'Lawrence O\'Donnell',
+  'The 11th Hour with Stephanie Ruhle': 'Stephanie Ruhle',
+  'The Weekend': 'Weekend Anchors',
+  'Velshi': 'Ali Velshi',
+  'Alex Witt Reports': 'Alex Witt',
+  'PoliticsNation with Al Sharpton': 'Al Sharpton',
+  'The Weekend: Primetime': 'Weekend Anchors',
+};
+
+const PALETTES = [
+  ['oklch(0.34 0.06 30)', 'oklch(0.22 0.04 25)', 'oklch(0.55 0.13 35)'],
+  ['oklch(0.30 0.04 250)', 'oklch(0.20 0.03 250)', 'oklch(0.48 0.08 245)'],
+  ['oklch(0.32 0.05 145)', 'oklch(0.22 0.03 145)', 'oklch(0.50 0.09 140)'],
+  ['oklch(0.34 0.05 80)', 'oklch(0.24 0.03 80)', 'oklch(0.55 0.10 75)'],
+  ['oklch(0.30 0.04 320)', 'oklch(0.21 0.03 320)', 'oklch(0.48 0.10 315)'],
+  ['oklch(0.32 0.03 210)', 'oklch(0.22 0.02 210)', 'oklch(0.50 0.06 205)'],
+];
+
+function relTime(ts) {
+  const diff = (Date.now() - new Date(ts)) / 1000;
+  if (diff < 3600)  return `${Math.floor(diff/60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+  if (diff < 604800) return `${Math.floor(diff/86400)}d ago`;
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function stripHtml(html) {
+  return html ? html.replace(/<[^>]*>/g, '').trim() : '';
+}
+
+// Map API post → UI video object
+function postToVideo(post) {
+  const cat = post.categories?.[0] || 'General';
+  const seed = post.id % PALETTES.length;
+  return {
+    id: post.id,
+    title: post.title,
+    description: stripHtml(post.content).slice(0, 200),
+    category: cat,
+    host: HOSTS[cat] || 'Newsroom',
+    chip: post.rumble_link ? 'Video' : 'Report',
+    isLive: false,
+    uploaded: relTime(post.created_at),
+    thumbnail_url: post.thumbnail_url || null,
+    thumbnail: { palette: PALETTES[seed], seed: post.id },
+    rumble_link: post.rumble_link || null,
+    content: post.content,
+    categories: post.categories || [],
+  };
+}
+
+// ── Icon ──────────────────────────────────────────────────────────────────
+function Icon({ name, size = 18, className = '', strokeWidth = 1.75 }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!ref.current || !window.lucide) return;
+    ref.current.innerHTML = '';
+    const el = document.createElement('i');
+    el.setAttribute('data-lucide', name);
+    ref.current.appendChild(el);
+    window.lucide.createIcons({ attrs: { width: size, height: size, 'stroke-width': strokeWidth }, nameAttr: 'data-lucide' });
+  }, [name, size, strokeWidth]);
+  return <span ref={ref} className={`inline-flex items-center justify-center ${className}`} aria-hidden="true" />;
+}
+
+// ── Thumbnail ─────────────────────────────────────────────────────────────
+function Thumbnail({ video, ratio = '16/9', overlay = true }) {
+  const { palette, seed } = video.thumbnail;
+  const [bg, mid, accent] = palette;
+  const angle = 110 + ((seed * 37) % 60);
+  const points = useMemo(() => {
+    let s = (seed + 1) * 9301;
+    const pts = [];
+    for (let i = 0; i <= 12; i++) {
+      s = (s * 1664525 + 1013904223) | 0;
+      pts.push(`${(i/12)*320},${40 + (((s>>>0)%100)/100)*50}`);
+    }
+    return pts.join(' ');
+  }, [seed]);
+
+  return (
+    <div className="relative w-full overflow-hidden bg-ink-900" style={{ aspectRatio: ratio }}>
+      {video.thumbnail_url ? (
+        <img src={video.thumbnail_url} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+      ) : (
+        <svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 w-full h-full">
+          <defs>
+            <linearGradient id={`g-${video.id}`} x1="0" y1="0" x2="1" y2="1" gradientTransform={`rotate(${angle},0.5,0.5)`}>
+              <stop offset="0%" stopColor={bg} />
+              <stop offset="55%" stopColor={mid} />
+              <stop offset="100%" stopColor={accent} />
+            </linearGradient>
+            <pattern id={`s-${video.id}`} width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+              <rect width="14" height="14" fill="transparent" />
+              <line x1="0" y1="0" x2="0" y2="14" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+            </pattern>
+          </defs>
+          <rect width="320" height="180" fill={`url(#g-${video.id})`} />
+          <rect width="320" height="180" fill={`url(#s-${video.id})`} />
+          <line x1="0" y1="120" x2="320" y2="120" stroke="rgba(255,255,255,0.06)" />
+          <polyline fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth="1.25" points={points} />
+          <circle cx="296" cy="24" r="3" fill="rgba(255,255,255,0.55)" />
+        </svg>
+      )}
+
+      {overlay && (
+        <>
+          <div className="absolute inset-0 bg-gradient-to-t from-ink-950/85 via-ink-950/15 to-transparent" />
+          <div className="absolute left-3 bottom-3 right-3 flex items-end justify-between gap-2">
+            <div className="font-mono text-[10px] uppercase tracking-[0.18em] leading-tight">
+              <div className="text-ink-300/70">{video.category}</div>
+              <div className="text-ink-100/95">{video.host}</div>
+            </div>
+          </div>
+          <div className="absolute right-3 top-3">
+            {video.rumble_link && (
+              <span className="rounded-sm bg-ink-950/75 backdrop-blur-sm px-1.5 py-0.5 font-mono text-[10px] text-ink-100 ring-1 ring-white/10">▶ VIDEO</span>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Play overlay ──────────────────────────────────────────────────────────
+function PlayOverlay() {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      <div className="absolute inset-0 bg-ink-950/35" />
+      <div className="relative rounded-full bg-ink-100 text-ink-950 flex items-center justify-center shadow-2xl ring-1 ring-white/40" style={{ width: 56, height: 56 }}>
+        <Icon name="play" size={22} />
+      </div>
+    </div>
+  );
+}
+
+// ── Video card ─────────────────────────────────────────────────────────────
+function VideoCard({ video, onOpen }) {
+  return (
+    <button type="button" onClick={() => onOpen(video)}
+      className="group text-left fade-up focus:outline-none focus-visible:ring-2 focus-visible:ring-ember/70 rounded-md">
+      <div className="relative overflow-hidden rounded-md ring-1 ring-white/5 group-hover:ring-white/15 transition">
+        <Thumbnail video={video} />
+        <PlayOverlay />
+      </div>
+      <div className="mt-3 space-y-1.5">
+        <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.14em] text-ink-400">
+          <span className="text-ember-soft">{video.chip}</span>
+          <span className="text-ink-700">·</span>
+          <span>{video.category}</span>
+        </div>
+        <h3 className="text-[15px] leading-snug font-medium text-ink-100 text-pretty group-hover:text-ember-soft transition-colors line-clamp-2">
+          {video.title}
+        </h3>
+        <div className="flex items-center gap-2 text-xs text-ink-500">
+          <span>{video.host}</span>
+          <span className="text-ink-700">·</span>
+          <span>{video.uploaded}</span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// ── Related card (sidebar) ────────────────────────────────────────────────
+function RelatedCard({ video, onOpen, active }) {
+  return (
+    <button type="button" onClick={() => onOpen(video)}
+      className={`group w-full text-left flex gap-3 p-2 rounded-md transition ${active ? 'bg-ink-850 ring-1 ring-ember/30' : 'hover:bg-ink-900'}`}>
+      <div className="relative w-36 shrink-0 overflow-hidden rounded ring-1 ring-white/5">
+        <Thumbnail video={video} overlay={false} />
+        <div className="absolute inset-0 bg-gradient-to-t from-ink-950/70 to-transparent" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-ember-soft truncate">{video.category}</div>
+        <div className="text-[13px] leading-snug text-ink-100 line-clamp-2 mt-0.5 group-hover:text-ember-soft transition-colors">{video.title}</div>
+        <div className="text-[11px] text-ink-500 mt-1 font-mono">{video.uploaded}</div>
+      </div>
+    </button>
+  );
+}
+
+// ── Category chip ─────────────────────────────────────────────────────────
+function CategoryChip({ label, active, count, onClick }) {
+  return (
+    <button type="button" onClick={onClick}
+      className={`relative whitespace-nowrap shrink-0 px-3 py-2 text-[13px] font-medium transition-colors
+        ${active ? 'text-ink-100' : 'text-ink-400 hover:text-ink-200'}`}>
+      <span className="inline-flex items-center gap-1.5">
+        {label}
+        {typeof count === 'number' && (
+          <span className={`font-mono text-[10px] tabular-nums ${active ? 'text-ember-soft' : 'text-ink-600'}`}>{count}</span>
+        )}
+      </span>
+      <span className={`pointer-events-none absolute left-2 right-2 -bottom-px h-px transition-colors ${active ? 'bg-ember' : 'bg-transparent'}`} />
+    </button>
+  );
+}
+
+// ── Watch view ────────────────────────────────────────────────────────────
+function WatchView({ video, all, onOpen, onClose }) {
+  const related = useMemo(() =>
+    all.filter(v => v.id !== video.id)
+      .sort((a, b) => (a.category === video.category ? -1 : 0) - (b.category === video.category ? -1 : 0))
+      .slice(0, 10),
+    [video, all]
+  );
+
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, [video.id]);
+
+  return (
+    <div className="fade-up">
+      <button type="button" onClick={onClose}
+        className="inline-flex items-center gap-2 mb-5 text-[13px] text-ink-400 hover:text-ink-100 transition">
+        <Icon name="arrow-left" size={14} /> Back to all shows
+      </button>
+
+      <div className="grid lg:grid-cols-[1fr_360px] gap-8">
+        <div>
+          {/* Player */}
+          {video.rumble_link ? (
+            <div className="relative w-full overflow-hidden rounded-lg bg-ink-950 ring-1 ring-white/10" style={{ paddingBottom: '56.25%', height: 0 }}>
+              <iframe
+                src={video.rumble_link}
+                className="absolute inset-0 w-full h-full"
+                allowFullScreen frameBorder="0" scrolling="no"
+              />
+            </div>
+          ) : (
+            <div className="relative overflow-hidden rounded-lg ring-1 ring-white/10">
+              <Thumbnail video={video} overlay={false} />
+              <div className="absolute inset-0 flex items-center justify-center bg-ink-950/40">
+                <div className="text-center text-ink-400">
+                  <Icon name="video-off" size={32} className="mx-auto mb-2" />
+                  <p className="text-sm">No video available for this segment</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-6 flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.18em]">
+            <span className="text-ember-soft">{video.chip}</span>
+            <span className="text-ink-700">·</span>
+            <span className="text-ink-400">{video.category}</span>
+            <span className="text-ink-700">·</span>
+            <span className="text-ink-500">{video.uploaded}</span>
+          </div>
+
+          <h1 className="mt-3 font-serif text-3xl md:text-4xl text-ink-100 leading-tight text-balance">
+            {video.title}
+          </h1>
+
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-ink-800">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-ember-deep to-ember flex items-center justify-center text-ink-950 font-serif text-lg">
+                {video.host.charAt(0)}
+              </div>
+              <div>
+                <div className="text-[14px] text-ink-100">{video.host}</div>
+                <div className="font-mono text-[11px] text-ink-500">Anchor · {video.category}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 text-ink-400">
+              {[['share-2','Share'],['bookmark','Save']].map(([ic,label]) => (
+                <button key={ic} className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md hover:bg-ink-900 hover:text-ink-100 transition text-[12px]">
+                  <Icon name={ic} size={14} /><span>{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="mt-5 rounded-lg bg-ink-900/70 ring-1 ring-ink-800 p-5">
+            <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-500 mb-3">Aired {video.uploaded}</div>
+            {video.description ? (
+              <p className="text-[15px] leading-relaxed text-ink-300 text-pretty">{video.description}</p>
+            ) : (
+              <div className="text-[15px] leading-relaxed text-ink-400" dangerouslySetInnerHTML={{ __html: video.content }} />
+            )}
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {video.categories.map(t => (
+                <span key={t} className="inline-flex items-center px-2 py-1 rounded font-mono text-[10px] uppercase tracking-wider bg-ink-850 text-ink-300 ring-1 ring-ink-800">#{t.replace(/[\s:]/g,'')}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <aside className="lg:sticky lg:top-32 self-start">
+          <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-ink-500 mb-3 px-1">Up Next</div>
+          <div className="space-y-1">
+            {related.map(v => <RelatedCard key={v.id} video={v} onOpen={onOpen} active={v.id === video.id} />)}
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+// ── Hero ──────────────────────────────────────────────────────────────────
+function Hero({ featured, onOpen }) {
+  return (
+    <section className="relative overflow-hidden rounded-xl ring-1 ring-white/5 bg-ink-900">
+      <div className="grid lg:grid-cols-[1.45fr_1fr]">
+        <div className="relative">
+          <Thumbnail video={featured} overlay={false} ratio="16/9" />
+          <div className="absolute inset-0 bg-gradient-to-r from-ink-950/85 via-ink-950/30 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-ink-950/75 via-transparent to-transparent lg:hidden" />
+          <div className="absolute top-5 left-5">
+            <span className="inline-flex items-center gap-1.5 rounded-sm bg-ember px-2.5 py-1 font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-ink-950">FEATURED</span>
+          </div>
+        </div>
+        <div className="relative p-6 md:p-10 lg:p-12 flex flex-col justify-center bg-gradient-to-br from-ink-900 to-ink-950">
+          <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-ember-soft mb-3">
+            The Lead · {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          </div>
+          <h1 className="font-serif text-3xl md:text-4xl lg:text-[40px] leading-[1.05] text-ink-100 text-balance">
+            {featured.title}
+          </h1>
+          <p className="mt-4 text-[15px] leading-relaxed text-ink-400 text-pretty max-w-prose">
+            {featured.description || stripHtml(featured.content).slice(0, 160)}
+          </p>
+          <div className="mt-7 flex flex-wrap items-center gap-3">
+            <button type="button" onClick={() => onOpen(featured)}
+              className="group inline-flex items-center gap-2.5 h-11 px-5 rounded-md bg-ink-100 text-ink-950 font-medium text-[14px] hover:bg-white transition">
+              <span className="relative inline-flex items-center justify-center w-5 h-5 rounded-full bg-ember text-ink-950">
+                <Icon name="play" size={11} strokeWidth={2.5} />
+              </span>
+              {featured.rumble_link ? 'Watch video' : 'Read more'}
+            </button>
+          </div>
+          <div className="mt-8 pt-6 border-t border-ink-800 grid grid-cols-3 gap-4 text-[12px]">
+            <div>
+              <div className="font-mono uppercase tracking-[0.16em] text-ink-600 mb-1">Anchor</div>
+              <div className="text-ink-200">{featured.host}</div>
+            </div>
+            <div>
+              <div className="font-mono uppercase tracking-[0.16em] text-ink-600 mb-1">Show</div>
+              <div className="text-ink-200">{featured.category}</div>
+            </div>
+            <div>
+              <div className="font-mono uppercase tracking-[0.16em] text-ink-600 mb-1">Updated</div>
+              <div className="text-ink-200">{featured.uploaded}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Header ────────────────────────────────────────────────────────────────
+function Header({ query, setQuery, onOpenMenu }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <header className="sticky top-0 z-40 bg-ink-950/85 backdrop-blur-xl border-b border-ink-800/70">
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 h-16 flex items-center gap-4 md:gap-8">
+        <button type="button" onClick={onOpenMenu} className="md:hidden p-2 -ml-2 text-ink-300 hover:text-ink-100" aria-label="Menu">
+          <Icon name="menu" size={20} />
+        </button>
+        <a href="#" className="flex items-center gap-2.5 shrink-0">
+          <span className="relative inline-flex items-center justify-center w-7 h-7 rounded-sm bg-ember text-ink-950">
+            <span className="font-serif text-[18px] leading-none translate-y-px">N</span>
+            <span className="absolute -right-0.5 -bottom-0.5 w-1.5 h-1.5 rounded-full bg-ink-100 ring-2 ring-ink-950" />
+          </span>
+          <div className="flex items-baseline gap-1.5">
+            <span className="font-serif text-[22px] leading-none text-ink-100 tracking-tight">NEWSGRID</span>
+            <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-[0.2em] text-ink-500 translate-y-px">/ video</span>
+          </div>
+        </a>
+
+        <div className={`flex-1 max-w-xl ml-auto md:ml-0 transition-all ${focused ? 'md:max-w-2xl' : ''}`}>
+          <label className={`group relative flex items-center gap-2 h-10 rounded-md bg-ink-900 ring-1 transition px-3 ${focused ? 'ring-ember/50 bg-ink-850' : 'ring-ink-800 hover:ring-ink-700'}`}>
+            <Icon name="search" size={16} className="text-ink-500 group-focus-within:text-ember" />
+            <input value={query} onChange={e => setQuery(e.target.value)}
+              onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+              placeholder="Search shows, hosts, topics…"
+              className="flex-1 bg-transparent outline-none text-[14px] placeholder:text-ink-600 text-ink-100" />
+            {query && (
+              <button type="button" onClick={() => setQuery('')} className="text-ink-500 hover:text-ink-200 p-1 -mr-1">
+                <Icon name="x" size={14} />
+              </button>
+            )}
+          </label>
+        </div>
+
+        <div className="hidden md:flex items-center gap-1 shrink-0">
+          <a href="/admin" className="inline-flex items-center gap-2 h-9 px-3 rounded-md ring-1 ring-ink-700 hover:ring-ink-500 text-ink-300 hover:text-ink-100 text-[13px] transition">
+            <Icon name="settings" size={14} />Admin
+          </a>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+// ── Category bar ──────────────────────────────────────────────────────────
+function CategoryBar({ categories, active, setActive, counts }) {
+  const scrollRef = useRef(null);
+  const [edges, setEdges] = useState({ left: false, right: true });
+
+  const updateEdges = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setEdges({ left: el.scrollLeft > 4, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 });
+  }, []);
+
+  useEffect(() => {
+    updateEdges();
+    const el = scrollRef.current;
+    el?.addEventListener('scroll', updateEdges, { passive: true });
+    window.addEventListener('resize', updateEdges);
+    return () => { el?.removeEventListener('scroll', updateEdges); window.removeEventListener('resize', updateEdges); };
+  }, [updateEdges]);
+
+  const scrollBy = dir => scrollRef.current?.scrollBy({ left: dir * 300, behavior: 'smooth' });
+
+  return (
+    <div className="sticky top-16 z-30 bg-ink-950/85 backdrop-blur-xl border-b border-ink-800/70">
+      <div className="relative max-w-[1400px] mx-auto px-4 md:px-8">
+        <div className={`pointer-events-none absolute left-4 md:left-8 top-0 bottom-0 w-12 bg-gradient-to-r from-ink-950 to-transparent transition-opacity ${edges.left?'opacity-100':'opacity-0'}`} />
+        <div className={`pointer-events-none absolute right-4 md:right-8 top-0 bottom-0 w-12 bg-gradient-to-l from-ink-950 to-transparent transition-opacity ${edges.right?'opacity-100':'opacity-0'}`} />
+        <button onClick={() => scrollBy(-1)} className={`hidden md:flex items-center justify-center absolute left-1 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-ink-900 ring-1 ring-ink-800 text-ink-300 hover:text-ink-100 z-10 transition ${edges.left?'opacity-100':'opacity-0 pointer-events-none'}`}>
+          <Icon name="chevron-left" size={14} />
+        </button>
+        <button onClick={() => scrollBy(1)} className={`hidden md:flex items-center justify-center absolute right-1 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-ink-900 ring-1 ring-ink-800 text-ink-300 hover:text-ink-100 z-10 transition ${edges.right?'opacity-100':'opacity-0 pointer-events-none'}`}>
+          <Icon name="chevron-right" size={14} />
+        </button>
+        <div ref={scrollRef} className="no-scrollbar overflow-x-auto -mx-1 px-1">
+          <div className="flex items-stretch min-w-max">
+            {categories.map(c => (
+              <CategoryChip key={c} label={c} count={counts[c]} active={active === c} onClick={() => setActive(c)} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Mobile drawer ─────────────────────────────────────────────────────────
+function MobileDrawer({ open, onClose, categories, active, setActive, counts }) {
+  return (
+    <div className={`fixed inset-0 z-50 md:hidden ${open ? '' : 'pointer-events-none'}`}>
+      <div className={`absolute inset-0 bg-ink-950/70 backdrop-blur-sm transition-opacity ${open?'opacity-100':'opacity-0'}`} onClick={onClose} />
+      <aside className={`absolute left-0 top-0 bottom-0 w-[82%] max-w-sm bg-ink-900 border-r border-ink-800 transition-transform duration-300 ${open?'translate-x-0':'-translate-x-full'}`}>
+        <div className="h-16 px-5 flex items-center justify-between border-b border-ink-800">
+          <span className="font-serif text-xl text-ink-100">NEWSGRID</span>
+          <button onClick={onClose} className="p-2 text-ink-300"><Icon name="x" /></button>
+        </div>
+        <div className="px-3 py-4 overflow-y-auto h-[calc(100%-4rem)] scrollbar-thin">
+          <div className="px-2 pb-2 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-600">Shows & sections</div>
+          <ul className="space-y-1">
+            {categories.map(c => (
+              <li key={c}>
+                <button onClick={() => { setActive(c); onClose(); }}
+                  className={`w-full text-left flex items-center justify-between px-3 py-2.5 rounded-md text-[14px] transition ${active===c?'bg-ink-850 text-ink-100':'text-ink-300 hover:bg-ink-850/60 hover:text-ink-100'}`}>
+                  <span className="inline-flex items-center gap-2">
+                    {active===c && <span className="inline-block w-1 h-4 bg-ember rounded-full" />}{c}
+                  </span>
+                  <span className="font-mono text-[11px] text-ink-600">{counts[c]??0}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+// ── Section header ────────────────────────────────────────────────────────
+function SectionHeader({ kicker, title }) {
+  return (
+    <div className="mb-5">
+      {kicker && <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-ember-soft mb-2">{kicker}</div>}
+      <h2 className="font-serif text-2xl md:text-3xl text-ink-100 leading-none">{title}</h2>
+    </div>
+  );
+}
+
+// ── Browse view ───────────────────────────────────────────────────────────
+function BrowseView({ videos, activeCategory, query, onOpen, featured }) {
+  const showHero = activeCategory === 'All Shows' && !query && featured;
+  return (
+    <div className="space-y-12">
+      {showHero && <Hero featured={featured} onOpen={onOpen} />}
+
+      <section>
+        <SectionHeader
+          kicker={query ? `Results for "${query}"` : activeCategory === 'All Shows' ? 'Latest across every show' : `Latest from ${activeCategory}`}
+          title={query ? `${videos.length} segment${videos.length!==1?'s':''}` : activeCategory === 'All Shows' ? 'Latest video' : activeCategory}
+        />
+        {videos.length === 0 ? (
+          <div className="rounded-lg ring-1 ring-ink-800 bg-ink-900/40 p-12 text-center">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-ink-850 text-ink-400 mb-4">
+              <Icon name="search-x" size={20} />
+            </div>
+            <div className="font-serif text-xl text-ink-100">Nothing matches that search.</div>
+            <div className="text-ink-500 text-sm mt-1">Try a different term or select a different show.</div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-5 gap-y-10">
+            {videos.map(v => <VideoCard key={v.id} video={v} onOpen={onOpen} />)}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+// ── App ───────────────────────────────────────────────────────────────────
+function App() {
+  const [videos, setVideos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
+  const [active, setActive] = useState('All Shows');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [playing, setPlaying] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/posts?limit=100&sort=newest')
+      .then(r => r.json())
+      .then(d => { setVideos((d.posts || []).map(postToVideo)); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  // ⌘K shortcut
+  useEffect(() => {
+    const fn = e => {
+      if ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k') { e.preventDefault(); document.querySelector('input[placeholder^="Search"]')?.focus(); }
+      if (e.key==='Escape' && playing) setPlaying(null);
+    };
+    window.addEventListener('keydown', fn);
+    return () => window.removeEventListener('keydown', fn);
+  }, [playing]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return videos.filter(v => {
+      if (active !== 'All Shows' && v.category !== active) return false;
+      if (!q) return true;
+      return v.title.toLowerCase().includes(q) || v.description.toLowerCase().includes(q) || v.host.toLowerCase().includes(q) || v.category.toLowerCase().includes(q);
+    });
+  }, [videos, query, active]);
+
+  const counts = useMemo(() => {
+    const c = { 'All Shows': videos.length };
+    for (const v of videos) c[v.category] = (c[v.category]||0)+1;
+    return c;
+  }, [videos]);
+
+  return (
+    <div className="min-h-screen text-ink-100">
+      <Header query={query} setQuery={setQuery} onOpenMenu={() => setDrawerOpen(true)} />
+      <CategoryBar categories={CATEGORIES} active={active} setActive={c => { setActive(c); setPlaying(null); }} counts={counts} />
+      <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} categories={CATEGORIES} active={active} setActive={setActive} counts={counts} />
+
+      <main className="max-w-[1400px] mx-auto px-4 md:px-8 py-8 md:py-10">
+        {loading ? (
+          <div className="flex items-center justify-center py-32 gap-3 text-ink-400">
+            <span className="inline-block w-5 h-5 border-2 border-ink-700 border-t-ember rounded-full spin" />
+            Loading segments…
+          </div>
+        ) : playing ? (
+          <WatchView video={playing} all={videos} onOpen={setPlaying} onClose={() => setPlaying(null)} />
+        ) : (
+          <BrowseView videos={filtered} activeCategory={active} query={query} onOpen={setPlaying} featured={videos[0]} />
+        )}
+      </main>
+
+      <footer className="border-t border-ink-800 mt-16">
+        <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-10 grid md:grid-cols-4 gap-8 text-[13px]">
+          <div className="md:col-span-2">
+            <div className="flex items-center gap-2.5">
+              <span className="relative inline-flex items-center justify-center w-7 h-7 rounded-sm bg-ember text-ink-950">
+                <span className="font-serif text-[18px] leading-none translate-y-px">N</span>
+              </span>
+              <span className="font-serif text-xl text-ink-100">NEWSGRID</span>
+            </div>
+            <p className="mt-3 text-ink-500 max-w-sm">Daily political coverage from every MSNBC show. Auto-updated every 15 minutes.</p>
+          </div>
+          <div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-600 mb-3">Shows</div>
+            <ul className="space-y-2 text-ink-400">
+              {CATEGORIES.slice(1,5).map(c => <li key={c}><button className="hover:text-ink-100 text-left">{c}</button></li>)}
+            </ul>
+          </div>
+          <div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-600 mb-3">Site</div>
+            <ul className="space-y-2 text-ink-400">
+              <li><a href="/admin" className="hover:text-ink-100">Admin</a></li>
+            </ul>
+          </div>
+        </div>
+        <div className="border-t border-ink-850">
+          <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-5 flex flex-wrap items-center justify-between gap-3 text-[11px] font-mono uppercase tracking-[0.18em] text-ink-600">
+            <span>© 2026 NEWSGRID</span>
+            <span>Built for the way news actually moves.</span>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>
