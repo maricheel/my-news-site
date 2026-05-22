@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, send_from_directory,
 import json, os, traceback, requests as http_req
 from functools import wraps
 from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # app must be the very first assignment — Vercel static check
 app = Flask(__name__)
@@ -74,6 +75,11 @@ def init_db():
             rumble_link TEXT, featured_image_id INTEGER, categories TEXT,
             metadata TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             source TEXT DEFAULT 'automation', thumbnail_url TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY, email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     else:
         c.execute('''CREATE TABLE IF NOT EXISTS posts (
             id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL,
@@ -82,6 +88,29 @@ def init_db():
             source TEXT DEFAULT 'automation', thumbnail_url TEXT)''')
         try: c.execute('ALTER TABLE posts ADD COLUMN thumbnail_url TEXT')
         except Exception: pass
+        c.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    conn.commit(); conn.close()
+
+
+# ── Settings helpers ──────────────────────────────────────────────────────────
+def get_setting(key, default=''):
+    try:
+        conn = get_db(); c = get_cursor(conn)
+        c.execute(f'SELECT value FROM settings WHERE key={PH}', (key,))
+        row = fetchone(c); conn.close()
+        return row['value'] if row else default
+    except Exception: return default
+
+def set_setting(key, value):
+    conn = get_db(); c = get_cursor(conn)
+    if USE_POSTGRES:
+        c.execute('INSERT INTO settings(key,value) VALUES(%s,%s) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value', (key, value))
+    else:
+        c.execute('INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)', (key, value))
     conn.commit(); conn.close()
 
 
@@ -118,10 +147,12 @@ def verify_google_token(token):
 
 
 def require_admin(f):
-    """Redirect to login if the user hasn't authenticated as ALLOWED_EMAIL."""
+    """Redirect to login page (or return 401 for API calls) if not authenticated as admin."""
     @wraps(f)
     def decorated(*args, **kwargs):
         if session.get('admin_email') != ALLOWED_EMAIL:
+            if request.path.startswith('/api/'):
+                return jsonify({'error': 'Admin authentication required'}), 401
             return redirect('/auth/login')
         return f(*args, **kwargs)
     return decorated
@@ -188,6 +219,76 @@ def auth_verify():
 def auth_logout():
     session.clear()
     return jsonify({'ok': True})
+
+
+# ── API: premium toggle ───────────────────────────────────────────────────
+@app.route('/api/settings/premium', methods=['GET'])
+def get_premium():
+    return jsonify({'premium': get_setting('premium_mode') == 'true'})
+
+@app.route('/api/settings/premium', methods=['POST'])
+@require_admin
+def set_premium():
+    data = request.get_json() or {}
+    enabled = bool(data.get('enabled', False))
+    set_setting('premium_mode', 'true' if enabled else 'false')
+    return jsonify({'premium': enabled})
+
+
+# ── API: user registration / login / logout / status ──────────────────────
+@app.route('/api/auth/register', methods=['POST'])
+def user_register():
+    data = request.get_json() or {}
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password') or ''
+    if not email or not password:
+        return jsonify({'error': 'Email and password are required'}), 400
+    if len(password) < 6:
+        return jsonify({'error': 'Password must be at least 6 characters'}), 400
+    try:
+        conn = get_db(); c = get_cursor(conn)
+        c.execute(f'SELECT id FROM users WHERE email={PH}', (email,))
+        if fetchone(c):
+            conn.close()
+            return jsonify({'error': 'An account with this email already exists'}), 409
+        pw_hash = generate_password_hash(password)
+        c.execute(f'INSERT INTO users (email, password_hash) VALUES ({PH},{PH})', (email, pw_hash))
+        conn.commit(); conn.close()
+        session.permanent = True
+        session['user_email'] = email
+        return jsonify({'ok': True, 'email': email}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/auth/user-login', methods=['POST'])
+def user_login():
+    data = request.get_json() or {}
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password') or ''
+    if not email or not password:
+        return jsonify({'error': 'Email and password are required'}), 400
+    try:
+        conn = get_db(); c = get_cursor(conn)
+        c.execute(f'SELECT password_hash FROM users WHERE email={PH}', (email,))
+        row = fetchone(c); conn.close()
+        if not row or not check_password_hash(row['password_hash'], password):
+            return jsonify({'error': 'Invalid email or password'}), 401
+        session.permanent = True
+        session['user_email'] = email
+        return jsonify({'ok': True, 'email': email})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/auth/user-logout', methods=['POST'])
+def user_logout():
+    session.pop('user_email', None)
+    return jsonify({'ok': True})
+
+@app.route('/api/auth/user-status', methods=['GET'])
+def user_status():
+    email = session.get('user_email')
+    return jsonify({'logged_in': bool(email), 'email': email or ''})
+
 
 @app.route('/search')
 def search():

@@ -304,21 +304,31 @@ function PlayOverlay() {
 }
 
 // ── Video card ─────────────────────────────────────────────────────────────
-function VideoCard({ video, onOpen }) {
+function VideoCard({ video, onOpen, locked }) {
   return (
     <button type="button" onClick={() => onOpen(video)}
       className="group text-left fade-up focus:outline-none focus-visible:ring-2 focus-visible:ring-ember/70 rounded-md">
       <div className="relative overflow-hidden rounded-md ring-1 ring-white/5 group-hover:ring-white/15 transition">
         <Thumbnail video={video} />
-        <PlayOverlay />
+        {locked ? (
+          /* Lock overlay */
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-ink-950/75 backdrop-blur-[2px]">
+            <div className="rounded-full bg-ink-900/90 ring-1 ring-ink-700 flex items-center justify-center mb-2" style={{width:44,height:44}}>
+              <Icon name="lock" size={18} className="text-ember" />
+            </div>
+            <span className="font-mono text-[10px] uppercase tracking-widest text-ink-300">Members only</span>
+          </div>
+        ) : (
+          <PlayOverlay />
+        )}
       </div>
       <div className="mt-3 space-y-1.5">
         <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.14em] text-ink-400">
-          <span className="text-ember-soft">{video.chip}</span>
+          <span className={locked ? 'text-ink-600' : 'text-ember-soft'}>{locked ? 'Premium' : video.chip}</span>
           <span className="text-ink-700">·</span>
           <span>{video.category}</span>
         </div>
-        <h3 className="text-[15px] leading-snug font-medium text-ink-100 text-pretty group-hover:text-ember-soft transition-colors line-clamp-2">
+        <h3 className={`text-[15px] leading-snug font-medium text-pretty line-clamp-2 transition-colors ${locked ? 'text-ink-500' : 'text-ink-100 group-hover:text-ember-soft'}`}>
           {video.title}
         </h3>
         <div className="flex items-center gap-2 text-xs text-ink-500">
@@ -613,7 +623,7 @@ function Hero({ featured, onOpen }) {
 }
 
 // ── Header ────────────────────────────────────────────────────────────────
-function Header({ query, setQuery, onOpenMenu, theme, onToggleTheme }) {
+function Header({ query, setQuery, onOpenMenu, theme, onToggleTheme, premium, userEmail, onOpenAuth, onUserLogout }) {
   const [focused, setFocused] = useState(false);
   return (
     <header className="sticky top-0 z-40 bg-ink-950/85 backdrop-blur-xl border-b border-ink-800/70">
@@ -622,16 +632,14 @@ function Header({ query, setQuery, onOpenMenu, theme, onToggleTheme }) {
           <Icon name="menu" size={20} />
         </button>
         <a href="#" className="flex items-center gap-2 shrink-0">
-          {/* Mobile: favicon image; Desktop: hidden */}
           <img src="/static/images/favicon.png" alt="msnow.click" className="sm:hidden w-7 h-7 rounded-sm object-cover" />
-          {/* Desktop: text logo only, no icon */}
           <div className="hidden sm:flex items-baseline gap-1.5">
             <span className="font-serif text-[22px] leading-none text-ink-100 tracking-tight">msnow.click</span>
             <span className="hidden md:inline font-mono text-[10px] uppercase tracking-[0.2em] text-ink-500 translate-y-px">/ live</span>
           </div>
         </a>
 
-        {/* Search — compact on mobile (max-w capped), full width on md+ */}
+        {/* Search */}
         <div className="flex-1 min-w-0 max-w-[180px] sm:max-w-xs md:max-w-xl ml-auto md:ml-0">
           <label className={`group relative flex items-center gap-1.5 h-8 md:h-10 rounded-md bg-ink-900 ring-1 transition px-2.5 ${focused ? 'ring-ember/50 bg-ink-850' : 'ring-ink-800 hover:ring-ink-700'}`}>
             <Icon name="search" size={14} className="text-ink-500 shrink-0 group-focus-within:text-ember" />
@@ -647,7 +655,28 @@ function Header({ query, setQuery, onOpenMenu, theme, onToggleTheme }) {
           </label>
         </div>
 
-        {/* Theme toggle — always visible */}
+        {/* User auth — only visible when premium mode is on */}
+        {premium && (
+          userEmail ? (
+            <div className="shrink-0 flex items-center gap-1.5">
+              <div className="hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-md bg-ink-900/70 ring-1 ring-ink-800 text-[12px] text-ink-300 font-mono max-w-[140px] truncate">
+                <Icon name="user" size={12} className="text-ember shrink-0" />
+                <span className="truncate">{userEmail}</span>
+              </div>
+              <button onClick={onUserLogout} title="Sign out"
+                className="shrink-0 flex items-center justify-center w-8 h-8 rounded-md ring-1 ring-ink-700 hover:ring-live/50 text-ink-400 hover:text-live transition">
+                <Icon name="log-out" size={14} />
+              </button>
+            </div>
+          ) : (
+            <button onClick={onOpenAuth}
+              className="shrink-0 h-8 px-3 rounded-md bg-ember hover:bg-ember/90 text-ink-950 font-semibold text-[12px] transition whitespace-nowrap">
+              Sign In
+            </button>
+          )
+        )}
+
+        {/* Theme toggle */}
         <button onClick={onToggleTheme} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           className="shrink-0 flex items-center justify-center w-8 h-8 rounded-md ring-1 ring-ink-700 hover:ring-ink-500 text-ink-400 hover:text-ink-100 transition">
           <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15} />
@@ -743,11 +772,37 @@ function SectionHeader({ kicker, title }) {
 }
 
 // ── Browse view ───────────────────────────────────────────────────────────
-function BrowseView({ videos, activeCategory, query, onOpen, featured }) {
+function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, featured, freeIds, premium, userEmail }) {
   const showHero = activeCategory === 'All Shows' && !query && featured;
+
+  const handleOpen = useCallback(v => {
+    const locked = premium && !userEmail && freeIds && !freeIds.has(v.id);
+    if (locked) { onOpenAuth(); return; }
+    onOpen(v);
+  }, [premium, userEmail, freeIds, onOpen, onOpenAuth]);
+
   return (
     <div className="space-y-12">
       {showHero && <LiveHero />}
+
+      {/* Premium banner when active and user not logged in */}
+      {premium && !userEmail && (
+        <div className="rounded-xl ring-1 ring-ember/30 bg-ember/8 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="shrink-0 w-9 h-9 rounded-full bg-ember/20 ring-1 ring-ember/30 flex items-center justify-center">
+              <Icon name="lock" size={16} className="text-ember" />
+            </div>
+            <div>
+              <div className="text-[14px] font-medium text-ink-100">Premium archive</div>
+              <div className="text-[12px] text-ink-400">Sign in or create a free account to watch every segment.</div>
+            </div>
+          </div>
+          <button onClick={onOpenAuth}
+            className="shrink-0 h-9 px-4 rounded-md bg-ember hover:bg-ember/90 text-ink-950 font-semibold text-[13px] transition">
+            Sign In / Register
+          </button>
+        </div>
+      )}
 
       <section>
         <SectionHeader
@@ -764,10 +819,103 @@ function BrowseView({ videos, activeCategory, query, onOpen, featured }) {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-5 gap-y-10">
-            {videos.map(v => <VideoCard key={v.id} video={v} onOpen={onOpen} />)}
+            {videos.map(v => {
+              const locked = premium && !userEmail && freeIds && !freeIds.has(v.id);
+              return <VideoCard key={v.id} video={v} onOpen={handleOpen} locked={locked} />;
+            })}
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+// ── User Auth Modal ───────────────────────────────────────────────────────
+function UserAuthModal({ onClose, onSuccess, initialMode = 'login' }) {
+  const [mode, setMode] = useState(initialMode); // 'login' | 'register'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const submit = async e => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    const url = mode === 'login' ? '/api/auth/user-login' : '/api/auth/register';
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+      });
+      const d = await r.json();
+      if (r.ok) {
+        onSuccess(d.email);
+      } else {
+        setError(d.error || 'Something went wrong.');
+      }
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-ink-950/80 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Card */}
+      <div className="relative w-full max-w-sm rounded-2xl bg-ink-900 ring-1 ring-ink-800 p-8 fade-up">
+        {/* Close */}
+        <button onClick={onClose} className="absolute top-4 right-4 text-ink-500 hover:text-ink-200 transition">
+          <Icon name="x" size={18} />
+        </button>
+
+        {/* Lock icon */}
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-ember/15 ring-1 ring-ember/30 mb-5">
+          <Icon name="lock" size={22} className="text-ember" />
+        </div>
+
+        <h2 className="font-serif text-2xl text-ink-100 mb-1">
+          {mode === 'login' ? 'Sign in' : 'Create account'}
+        </h2>
+        <p className="text-[13px] text-ink-500 mb-6">
+          {mode === 'login' ? 'Access the full archive of every MSNBC show.' : 'Free account — watch everything instantly.'}
+        </p>
+
+        {/* Tabs */}
+        <div className="flex rounded-md ring-1 ring-ink-800 overflow-hidden mb-6">
+          {[['login','Sign In'],['register','Create Account']].map(([m, lbl]) => (
+            <button key={m} onClick={() => { setMode(m); setError(''); }}
+              className={`flex-1 py-2 text-[13px] font-medium transition ${mode === m ? 'bg-ember text-ink-950' : 'text-ink-400 hover:text-ink-100'}`}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={submit} className="space-y-3">
+          <input
+            type="email" required placeholder="Email address"
+            value={email} onChange={e => setEmail(e.target.value)}
+            className="w-full bg-ink-950 ring-1 ring-ink-800 focus:ring-ember/50 rounded-md px-3 py-2.5 text-[14px] text-ink-100 placeholder:text-ink-600 outline-none transition"
+          />
+          <input
+            type="password" required placeholder={mode === 'register' ? 'Password (min 6 chars)' : 'Password'}
+            value={password} onChange={e => setPassword(e.target.value)}
+            className="w-full bg-ink-950 ring-1 ring-ink-800 focus:ring-ember/50 rounded-md px-3 py-2.5 text-[14px] text-ink-100 placeholder:text-ink-600 outline-none transition"
+          />
+          {error && (
+            <p className="font-mono text-[12px] text-live bg-live/10 ring-1 ring-live/30 rounded-md px-3 py-2">{error}</p>
+          )}
+          <button type="submit" disabled={loading}
+            className="w-full h-11 rounded-md bg-ember hover:bg-ember/90 disabled:opacity-60 text-ink-950 font-semibold text-[14px] transition">
+            {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
@@ -784,6 +932,11 @@ function App() {
     try { return localStorage.getItem('theme') || 'dark'; } catch { return 'dark'; }
   });
 
+  // ── Premium / user auth state ──────────────────────────────────────────
+  const [premium, setPremium] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
+  const [authModal, setAuthModal] = useState(false);
+
   useEffect(() => {
     document.documentElement.classList.toggle('light', theme === 'light');
     try { localStorage.setItem('theme', theme); } catch {}
@@ -793,33 +946,49 @@ function App() {
 
   const VALID_CATEGORIES = new Set(CATEGORIES.filter(c => c !== 'All Shows'));
 
+  // Fetch posts + premium status + user session in parallel
   useEffect(() => {
-    fetch('/api/posts?limit=100&sort=newest')
-      .then(r => r.json())
-      .then(d => {
-        const all = (d.posts || [])
-          .map(postToVideo)
-          .filter(v => VALID_CATEGORIES.has(v.category));
-        setVideos(all);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    const postsP = fetch('/api/posts?limit=100&sort=newest').then(r => r.json());
+    const premiumP = fetch('/api/settings/premium').then(r => r.json()).catch(() => ({ premium: false }));
+    const userP = fetch('/api/auth/user-status').then(r => r.json()).catch(() => ({ logged_in: false, email: '' }));
+
+    Promise.all([postsP, premiumP, userP]).then(([postsData, premiumData, userData]) => {
+      const all = (postsData.posts || [])
+        .map(postToVideo)
+        .filter(v => VALID_CATEGORIES.has(v.category));
+      setVideos(all);
+      setPremium(!!premiumData.premium);
+      setUserEmail(userData.email || '');
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
+
+  // Free IDs = newest 20% of ALL videos (regardless of filter)
+  const freeIds = useMemo(() => {
+    if (!premium) return null;
+    const count = Math.max(1, Math.ceil(videos.length * 0.2));
+    return new Set(videos.slice(0, count).map(v => v.id));
+  }, [videos, premium]);
+
+  const handleUserLogout = async () => {
+    await fetch('/api/auth/user-logout', { method: 'POST' }).catch(() => {});
+    setUserEmail('');
+  };
 
   // Scroll to top whenever the active category changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [active]);
 
-  // ⌘K shortcut
+  // ⌘K / Escape shortcut
   useEffect(() => {
     const fn = e => {
       if ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k') { e.preventDefault(); document.querySelector('input[placeholder^="Search"]')?.focus(); }
-      if (e.key==='Escape' && playing) setPlaying(null);
+      if (e.key==='Escape') { if (authModal) setAuthModal(false); else if (playing) setPlaying(null); }
     };
     window.addEventListener('keydown', fn);
     return () => window.removeEventListener('keydown', fn);
-  }, [playing]);
+  }, [playing, authModal]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -838,9 +1007,23 @@ function App() {
 
   return (
     <div className="min-h-screen text-ink-100">
-      <Header query={query} setQuery={setQuery} onOpenMenu={() => setDrawerOpen(true)} theme={theme} onToggleTheme={toggleTheme} />
+      <Header
+        query={query} setQuery={setQuery} onOpenMenu={() => setDrawerOpen(true)}
+        theme={theme} onToggleTheme={toggleTheme}
+        premium={premium} userEmail={userEmail}
+        onOpenAuth={() => setAuthModal(true)}
+        onUserLogout={handleUserLogout}
+      />
       <CategoryBar categories={CATEGORIES} active={active} setActive={c => { setActive(c); setPlaying(null); }} counts={counts} />
       <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} categories={CATEGORIES} active={active} setActive={setActive} counts={counts} />
+
+      {/* Auth modal */}
+      {authModal && (
+        <UserAuthModal
+          onClose={() => setAuthModal(false)}
+          onSuccess={email => { setUserEmail(email); setAuthModal(false); }}
+        />
+      )}
 
       <main className="max-w-[1400px] mx-auto px-4 md:px-8 py-8 md:py-10">
         {loading ? (
@@ -851,7 +1034,12 @@ function App() {
         ) : playing ? (
           <WatchView video={playing} all={videos} onOpen={setPlaying} onClose={() => setPlaying(null)} />
         ) : (
-          <BrowseView videos={filtered} activeCategory={active} query={query} onOpen={setPlaying} featured={videos[0]} />
+          <BrowseView
+            videos={filtered} activeCategory={active} query={query}
+            onOpen={setPlaying} onOpenAuth={() => setAuthModal(true)}
+            featured={videos[0]}
+            premium={premium} userEmail={userEmail} freeIds={freeIds}
+          />
         )}
       </main>
 
