@@ -706,7 +706,7 @@ def run_cron():
     try:
         resp = http_req.get(
             f'{wp_url}/wp-json/wp/v2/posts',
-            params={'per_page': 10, 'order': 'desc', '_embed': '1'},
+            params={'per_page': 1, 'order': 'desc', '_embed': '1'},
             timeout=20
         )
         if resp.status_code != 200:

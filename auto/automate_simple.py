@@ -268,7 +268,7 @@ def main():
     print(f"⏰ [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Automation running")
     print("="*50 + "\n")
 
-    posts = get_wordpress_posts(per_page=20)
+    posts = get_wordpress_posts(per_page=1)
     if not posts:
         print("ℹ️  Nothing new to publish.\n")
         return True
