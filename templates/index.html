@@ -462,7 +462,8 @@ function WatchView({ video, all, onOpen, onClose, isLocked }) {
         <div>
           {/* Player */}
           {video.embed_src && (
-            <div className="-mx-4 sm:mx-0 w-[calc(100%+2rem)] sm:w-full overflow-hidden sm:rounded-lg bg-ink-950 sm:ring-1 sm:ring-white/10" style={{ aspectRatio: '16/9' }}>
+            <div className="overflow-hidden sm:rounded-lg bg-ink-950 sm:ring-1 sm:ring-white/10"
+              style={{ aspectRatio:'16/9', width:'100vw', position:'relative', left:'50%', transform:'translateX(-50%)', maxWidth:'100vw' }}>
               <iframe
                 src={video.embed_src}
                 className="w-full h-full block"
@@ -1254,7 +1255,7 @@ function App() {
         />
       )}
 
-      <main className="max-w-[1400px] mx-auto px-4 md:px-8 py-8 md:py-10">
+      <main className="max-w-[1400px] mx-auto px-4 md:px-8 py-8 md:py-10 overflow-x-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-32 gap-3 text-ink-400">
             <span className="inline-block w-5 h-5 border-2 border-ink-700 border-t-ember rounded-full spin" />
