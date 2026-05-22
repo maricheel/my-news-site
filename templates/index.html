@@ -348,28 +348,29 @@ function VideoCard({ video, onOpen, locked, highlighted }) {
         {locked ? (
           /* Lock overlay */
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-ink-950/75 backdrop-blur-[2px]">
-            <div className="rounded-full bg-ink-900/90 ring-1 ring-ink-700 flex items-center justify-center mb-2" style={{width:44,height:44}}>
-              <Icon name="lock" size={18} className="text-ember" />
+            <div className="rounded-full bg-ink-900/90 ring-1 ring-ink-700 flex items-center justify-center mb-1 sm:mb-2" style={{width:'clamp(28px,8vw,44px)',height:'clamp(28px,8vw,44px)'}}>
+              <Icon name="lock" size={14} className="text-ember sm:hidden" />
+              <Icon name="lock" size={18} className="text-ember hidden sm:block" />
             </div>
-            <span className="font-mono text-[10px] uppercase tracking-widest text-ink-300">Members only</span>
+            <span className="font-mono text-[8px] sm:text-[10px] uppercase tracking-widest text-ink-300">Members only</span>
           </div>
         ) : (
           <PlayOverlay />
         )}
       </div>
-      <div className="mt-3 space-y-1.5">
-        <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.14em] text-ink-400 truncate">
+      <div className="mt-2 sm:mt-3 space-y-1 sm:space-y-1.5">
+        <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.12em] text-ink-400 truncate">
           <span className={`shrink-0 ${locked ? 'text-ink-600' : 'text-ember-soft'}`}>{locked ? 'Premium' : video.chip}</span>
           <span className="text-ink-700 shrink-0">·</span>
           <span className="truncate">{video.category}</span>
         </div>
         <h3
-          className={`text-[15px] leading-snug font-medium line-clamp-2 transition-colors ${locked ? 'text-ink-500' : 'text-ink-100 group-hover:text-ember-soft'}`}
-          style={{minHeight:'2.75rem', overflow:'hidden'}}
+          className={`text-[12px] sm:text-[15px] leading-snug font-medium line-clamp-2 transition-colors ${locked ? 'text-ink-500' : 'text-ink-100 group-hover:text-ember-soft'}`}
+          style={{minHeight:'2.4rem', overflow:'hidden'}}
         >
           {video.title}
         </h3>
-        <div className="flex items-center gap-2 text-xs text-ink-500 truncate">
+        <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-ink-500 truncate">
           <span className="truncate">{video.host}</span>
           <span className="text-ink-700 shrink-0">·</span>
           <span className="shrink-0">{video.uploaded}</span>
@@ -916,7 +917,7 @@ function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, feature
             <div className="text-ink-500 text-sm mt-1">Try a different term or select a different show.</div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-5 gap-y-10">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 gap-y-6 sm:gap-x-5 sm:gap-y-10">
             {videos.map(v => (
               <VideoCard key={v.id} video={v} onOpen={onOpen}
                 locked={isLocked ? isLocked(v) : false}
