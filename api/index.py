@@ -610,45 +610,61 @@ def _cron_insert_post(conn, p):
         return c.lastrowid
 
 @app.route('/api/cron', methods=['GET','POST'])
-@require_api_key
 def run_cron():
-    wp_url = os.getenv('WORDPRESS_URL', '').rstrip('/')
-    if not wp_url:
-        return jsonify({'error': 'WORDPRESS_URL not configured'}), 500
+    # Accept auth via Bearer header OR ?key= query param
+    api_key = API_KEY
+    auth  = request.headers.get('Authorization', '')
+    parts = auth.split()
+    key_from_header = parts[1] if len(parts) == 2 and parts[0] == 'Bearer' else ''
+    key_from_query  = request.args.get('key', '')
+    if key_from_header != api_key and key_from_query != api_key:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    # WORDPRESS_URL: env var first, then hardcoded fallback
+    wp_url = (os.getenv('WORDPRESS_URL') or 'https://thuyance.com').rstrip('/')
+
     try:
         resp = http_req.get(
             f'{wp_url}/wp-json/wp/v2/posts',
             params={'per_page': 10, 'order': 'desc', '_embed': '1'},
-            timeout=15
+            timeout=20
         )
         if resp.status_code != 200:
-            return jsonify({'error': f'WordPress returned {resp.status_code}'}), 502
+            return jsonify({'error': f'WordPress returned {resp.status_code}', 'wp_url': wp_url}), 502
         raw_posts = resp.json()
     except Exception as e:
-        return jsonify({'error': f'WordPress fetch failed: {e}'}), 502
+        return jsonify({'error': f'WordPress fetch failed: {str(e)}', 'wp_url': wp_url}), 502
 
     # Oldest first so timeline stays correct
     raw_posts = list(reversed(raw_posts))
 
-    conn = get_db()
+    try:
+        conn = get_db()
+    except Exception as e:
+        return jsonify({'error': f'DB connection failed: {str(e)}'}), 500
+
     published = 0; skipped = 0; failed = 0
+    errors = []
     try:
         for raw in raw_posts:
-            p = _cron_parse_wp_post(raw, conn)
-            if p is None:
-                skipped += 1
-                continue
             try:
+                p = _cron_parse_wp_post(raw, conn)
+                if p is None:
+                    skipped += 1
+                    continue
                 _cron_insert_post(conn, p)
                 conn.commit()
                 published += 1
             except Exception as e:
-                print(f'[CRON] Insert failed: {e}')
+                err = f'Post #{raw.get("id","?")} failed: {str(e)}'
+                print(f'[CRON] {err}')
+                errors.append(err)
                 failed += 1
     finally:
         conn.close()
 
-    return jsonify({'published': published, 'skipped': skipped, 'failed': failed}), 200
+    return jsonify({'published': published, 'skipped': skipped, 'failed': failed,
+                    'wp_url': wp_url, 'errors': errors}), 200
 
 
 # ── Lazy DB init ──────────────────────────────────────────────────────────────
