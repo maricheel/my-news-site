@@ -25,20 +25,24 @@ _raw_db_url  = (os.getenv('DATABASE_URL') or os.getenv('POSTGRES_URL')
 USE_POSTGRES = bool(_raw_db_url)
 
 if USE_POSTGRES:
+    import pg8000
     import pg8000.dbapi
     from urllib.parse import urlparse as _urlparse
+    import ssl as _ssl
     PH = '%s'
 
     def _parse_db_url(raw):
-        # strip sslmode from URL — pg8000 uses ssl_context=True instead
         u = _urlparse(raw)
+        ssl_ctx = _ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = _ssl.CERT_NONE
         return {
-            'host':     u.hostname,
-            'port':     u.port or 5432,
-            'user':     u.username,
-            'password': u.password,
-            'database': u.path.lstrip('/').split('?')[0],
-            'ssl_context': True,   # required for Neon
+            'host':        u.hostname,
+            'port':        u.port or 5432,
+            'user':        u.username,
+            'password':    u.password,
+            'database':    u.path.lstrip('/').split('?')[0],
+            'ssl_context': ssl_ctx,
         }
 
     _db_params = _parse_db_url(_raw_db_url)
