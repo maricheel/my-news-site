@@ -913,9 +913,18 @@ function SectionHeader({ kicker, title }) {
 }
 
 // ── Browse view ───────────────────────────────────────────────────────────
+const PAGE_SIZE = 12;
+
 function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, featured, isLocked, premium, userEmail, userStatus }) {
   const showHero = activeCategory === 'All Shows' && !query && featured;
   const [highlightId, setHighlightId] = useState(null);
+  const [page, setPage] = useState(1);
+
+  // Reset to page 1 whenever category or search changes
+  useEffect(() => { setPage(1); }, [activeCategory, query]);
+
+  const totalPages = Math.max(1, Math.ceil(videos.length / PAGE_SIZE));
+  const pageVideos = videos.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const scrollToFree = useCallback(() => {
     const first = videos.find(v => isLocked && !isLocked(v));
@@ -981,13 +990,54 @@ function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, feature
             <div className="text-ink-500 text-sm mt-1">Try a different term or select a different show.</div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 gap-y-6 sm:gap-x-5 sm:gap-y-10">
-            {videos.map(v => (
-              <VideoCard key={v.id} video={v} onOpen={onOpen}
-                locked={isLocked ? isLocked(v) : false}
-                highlighted={v.id === highlightId} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 gap-y-6 sm:gap-x-5 sm:gap-y-10">
+              {pageVideos.map(v => (
+                <VideoCard key={v.id} video={v} onOpen={onOpen}
+                  locked={isLocked ? isLocked(v) : false}
+                  highlighted={v.id === highlightId} />
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-10 flex-wrap">
+                {/* Prev */}
+                <button
+                  onClick={() => { setPage(p => Math.max(1, p - 1)); window.scrollTo({top:0,behavior:'smooth'}); }}
+                  disabled={page === 1}
+                  className="h-9 px-4 rounded-md ring-1 ring-ink-800 text-[13px] text-ink-300 hover:text-ink-100 hover:ring-ink-600 disabled:opacity-30 disabled:pointer-events-none transition flex items-center gap-1.5">
+                  <Icon name="chevron-left" size={14} /> Prev
+                </button>
+
+                {/* Page numbers */}
+                {Array.from({length: totalPages}, (_, i) => i + 1)
+                  .filter(n => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
+                  .reduce((acc, n, idx, arr) => {
+                    if (idx > 0 && n - arr[idx-1] > 1) acc.push('…');
+                    acc.push(n);
+                    return acc;
+                  }, [])
+                  .map((n, i) => n === '…' ? (
+                    <span key={`dots-${i}`} className="text-ink-600 px-1 text-[13px]">…</span>
+                  ) : (
+                    <button key={n}
+                      onClick={() => { setPage(n); window.scrollTo({top:0,behavior:'smooth'}); }}
+                      className={`h-9 w-9 rounded-md text-[13px] font-medium transition ${n === page ? 'bg-ember text-ink-950' : 'ring-1 ring-ink-800 text-ink-400 hover:text-ink-100 hover:ring-ink-600'}`}>
+                      {n}
+                    </button>
+                  ))}
+
+                {/* Next */}
+                <button
+                  onClick={() => { setPage(p => Math.min(totalPages, p + 1)); window.scrollTo({top:0,behavior:'smooth'}); }}
+                  disabled={page === totalPages}
+                  className="h-9 px-4 rounded-md ring-1 ring-ink-800 text-[13px] text-ink-300 hover:text-ink-100 hover:ring-ink-600 disabled:opacity-30 disabled:pointer-events-none transition flex items-center gap-1.5">
+                  Next <Icon name="chevron-right" size={14} />
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
     </div>
@@ -1201,7 +1251,7 @@ function App() {
 
   // Fetch posts + premium status + user session in parallel
   useEffect(() => {
-    const postsP = fetch('/api/posts?limit=100&sort=newest').then(r => r.json());
+    const postsP = fetch('/api/posts?limit=300&sort=newest').then(r => r.json());
     const premiumP = fetch('/api/settings/premium').then(r => r.json()).catch(() => ({ premium: false }));
     const userP = fetch('/api/auth/user-status').then(r => r.json()).catch(() => ({ logged_in: false, email: '' }));
 
