@@ -860,7 +860,7 @@ function SectionHeader({ kicker, title }) {
 }
 
 // ── Browse view ───────────────────────────────────────────────────────────
-function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, featured, isLocked, premium, userEmail }) {
+function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, featured, isLocked, premium, userEmail, userStatus }) {
   const showHero = activeCategory === 'All Shows' && !query && featured;
   const [highlightId, setHighlightId] = useState(null);
 
@@ -878,8 +878,8 @@ function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, feature
   return (
     <div className="space-y-12">
 
-      {/* Top info bar — shown in free/premium mode */}
-      {isLocked && videos.some(v => isLocked(v)) && (
+      {/* Top info bar — always visible, hidden only for approved premium users */}
+      {!(premium && userStatus === 'approved') && (
         <div className="flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-lg bg-ink-900/60 ring-1 ring-ink-800 text-[13px] text-ink-400">
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
           <span>Daily political coverage from every <strong className="text-ink-200 font-medium">MSNOW</strong> show. Updated every 15 minutes.</span>
@@ -1282,7 +1282,7 @@ function App() {
             videos={filtered} activeCategory={active} query={query}
             onOpen={handlePremiumOpen} onOpenAuth={() => setAuthModal(true)}
             featured={videos[0]}
-            premium={premium} userEmail={userEmail} isLocked={isLocked}
+            premium={premium} userEmail={userEmail} userStatus={userStatus} isLocked={isLocked}
           />
         )}
       </main>
