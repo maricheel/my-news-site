@@ -304,7 +304,7 @@ function RelatedCard({ video, onOpen, active }) {
 function CategoryChip({ label, active, count, onClick }) {
   return (
     <button type="button" onClick={onClick}
-      className={`relative whitespace-nowrap shrink-0 px-3 py-2 text-[13px] font-medium transition-colors
+      className={`relative whitespace-nowrap shrink-0 px-3 py-3 md:py-2 text-[13px] font-medium transition-colors
         ${active ? 'text-ink-100' : 'text-ink-400 hover:text-ink-200'}`}>
       <span className="inline-flex items-center gap-1.5">
         {label}
@@ -572,27 +572,29 @@ function Header({ query, setQuery, onOpenMenu }) {
         <button type="button" onClick={onOpenMenu} className="md:hidden p-2 -ml-2 text-ink-300 hover:text-ink-100" aria-label="Menu">
           <Icon name="menu" size={20} />
         </button>
-        <a href="#" className="flex items-center gap-2.5 shrink-0">
+        <a href="#" className="flex items-center gap-2 shrink-0">
           <span className="relative inline-flex items-center justify-center w-7 h-7 rounded-sm bg-ember text-ink-950">
             <span className="font-serif text-[18px] leading-none translate-y-px">M</span>
             <span className="absolute -right-0.5 -bottom-0.5 w-1.5 h-1.5 rounded-full bg-ink-100 ring-2 ring-ink-950" />
           </span>
-          <div className="flex items-baseline gap-1.5">
+          {/* Hide logo text on small screens to give search bar room */}
+          <div className="hidden sm:flex items-baseline gap-1.5">
             <span className="font-serif text-[22px] leading-none text-ink-100 tracking-tight">msnow.click</span>
-            <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-[0.2em] text-ink-500 translate-y-px">/ live</span>
+            <span className="hidden md:inline font-mono text-[10px] uppercase tracking-[0.2em] text-ink-500 translate-y-px">/ live</span>
           </div>
         </a>
 
-        <div className={`flex-1 max-w-xl ml-auto md:ml-0 transition-all ${focused ? 'md:max-w-2xl' : ''}`}>
-          <label className={`group relative flex items-center gap-2 h-10 rounded-md bg-ink-900 ring-1 transition px-3 ${focused ? 'ring-ember/50 bg-ink-850' : 'ring-ink-800 hover:ring-ink-700'}`}>
-            <Icon name="search" size={16} className="text-ink-500 group-focus-within:text-ember" />
+        {/* Search — compact on mobile (max-w capped), full width on md+ */}
+        <div className="flex-1 min-w-0 max-w-[180px] sm:max-w-xs md:max-w-xl ml-auto md:ml-0">
+          <label className={`group relative flex items-center gap-1.5 h-8 md:h-10 rounded-md bg-ink-900 ring-1 transition px-2.5 ${focused ? 'ring-ember/50 bg-ink-850' : 'ring-ink-800 hover:ring-ink-700'}`}>
+            <Icon name="search" size={14} className="text-ink-500 shrink-0 group-focus-within:text-ember" />
             <input value={query} onChange={e => setQuery(e.target.value)}
               onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-              placeholder="Search shows, hosts, topics…"
-              className="flex-1 bg-transparent outline-none text-[14px] placeholder:text-ink-600 text-ink-100" />
+              placeholder="Search…"
+              className="flex-1 min-w-0 bg-transparent outline-none text-[13px] placeholder:text-ink-600 text-ink-100" />
             {query && (
-              <button type="button" onClick={() => setQuery('')} className="text-ink-500 hover:text-ink-200 p-1 -mr-1">
-                <Icon name="x" size={14} />
+              <button type="button" onClick={() => setQuery('')} className="text-ink-500 hover:text-ink-200 p-0.5 shrink-0">
+                <Icon name="x" size={12} />
               </button>
             )}
           </label>
@@ -746,6 +748,11 @@ function App() {
       })
       .catch(() => setLoading(false));
   }, []);
+
+  // Scroll to top whenever the active category changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [active]);
 
   // ⌘K shortcut
   useEffect(() => {
