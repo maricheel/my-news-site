@@ -326,23 +326,13 @@ function WatchView({ video, all, onOpen, onClose }) {
       <div className="grid lg:grid-cols-[1fr_360px] gap-8">
         <div>
           {/* Player */}
-          {video.rumble_link ? (
+          {video.rumble_link && (
             <div className="relative w-full overflow-hidden rounded-lg bg-ink-950 ring-1 ring-white/10" style={{ paddingBottom: '56.25%', height: 0 }}>
               <iframe
                 src={video.rumble_link}
                 className="absolute inset-0 w-full h-full"
                 allowFullScreen frameBorder="0" scrolling="no"
               />
-            </div>
-          ) : (
-            <div className="relative overflow-hidden rounded-lg ring-1 ring-white/10">
-              <Thumbnail video={video} overlay={false} />
-              <div className="absolute inset-0 flex items-center justify-center bg-ink-950/40">
-                <div className="text-center text-ink-400">
-                  <Icon name="video-off" size={32} className="mx-auto mb-2" />
-                  <p className="text-sm">No video available for this segment</p>
-                </div>
-              </div>
             </div>
           )}
 
