@@ -106,6 +106,23 @@
   html.light .hover\:bg-ink-850\/60:hover{background-color:rgba(228,227,223,.65)!important}
   /* Scrollbar */
   html.light .scrollbar-thin::-webkit-scrollbar-thumb{background:#c8c7c3}
+  /* Hide category-bar edge fades in light mode (gradient colour mismatch) */
+  html.light .cat-fade{opacity:0!important;pointer-events:none}
+  /* Free-show highlight glow */
+  @keyframes freeGlowDark{
+    0%  {box-shadow:0 0 0 0 oklch(0.72 0.18 38/0),  0 0 0px  oklch(0.72 0.18 38/0)}
+    25% {box-shadow:0 0 0 3px oklch(0.72 0.18 38/.9),0 0 40px oklch(0.72 0.18 38/.45)}
+    75% {box-shadow:0 0 0 3px oklch(0.72 0.18 38/.9),0 0 40px oklch(0.72 0.18 38/.45)}
+    100%{box-shadow:0 0 0 0 oklch(0.72 0.18 38/0),  0 0 0px  oklch(0.72 0.18 38/0)}
+  }
+  @keyframes freeGlowLight{
+    0%  {box-shadow:0 0 0 0 rgba(0,0,0,0),   0 0 0px  rgba(0,0,0,0)}
+    25% {box-shadow:0 0 0 3px rgba(0,0,0,.7),0 0 28px rgba(0,0,0,.18)}
+    75% {box-shadow:0 0 0 3px rgba(0,0,0,.7),0 0 28px rgba(0,0,0,.18)}
+    100%{box-shadow:0 0 0 0 rgba(0,0,0,0),   0 0 0px  rgba(0,0,0,0)}
+  }
+  .free-glow      {animation:freeGlowDark  2.4s ease-in-out;border-radius:6px}
+  html.light .free-glow{animation:freeGlowLight 2.4s ease-in-out!important}
 </style>
 <script>
   /* Apply stored theme before first paint to avoid flash */
@@ -305,10 +322,10 @@ function PlayOverlay() {
 }
 
 // ── Video card ─────────────────────────────────────────────────────────────
-function VideoCard({ video, onOpen, locked }) {
+function VideoCard({ video, onOpen, locked, highlighted }) {
   return (
-    <button type="button" onClick={() => onOpen(video)}
-      className="group text-left fade-up focus:outline-none focus-visible:ring-2 focus-visible:ring-ember/70 rounded-md">
+    <button type="button" id={`card-${video.id}`} onClick={() => onOpen(video)}
+      className={`group text-left fade-up focus:outline-none focus-visible:ring-2 focus-visible:ring-ember/70 rounded-md ${highlighted ? 'free-glow' : ''}`}>
       <div className="relative overflow-hidden rounded-md ring-1 ring-white/5 group-hover:ring-white/15 transition">
         <Thumbnail video={video} />
         {locked ? (
@@ -748,8 +765,8 @@ function CategoryBar({ categories, active, setActive, counts }) {
   return (
     <div className="sticky top-16 z-30 bg-ink-950/85 backdrop-blur-xl border-b border-ink-800/70">
       <div className="relative max-w-[1400px] mx-auto px-4 md:px-8">
-        <div className={`pointer-events-none absolute left-4 md:left-8 top-0 bottom-0 w-12 bg-gradient-to-r from-ink-950 to-transparent transition-opacity ${edges.left?'opacity-100':'opacity-0'}`} />
-        <div className={`pointer-events-none absolute right-4 md:right-8 top-0 bottom-0 w-12 bg-gradient-to-l from-ink-950 to-transparent transition-opacity ${edges.right?'opacity-100':'opacity-0'}`} />
+        <div className={`cat-fade pointer-events-none absolute left-4 md:left-8 top-0 bottom-0 w-12 bg-gradient-to-r from-ink-950 to-transparent transition-opacity ${edges.left?'opacity-100':'opacity-0'}`} />
+        <div className={`cat-fade pointer-events-none absolute right-4 md:right-8 top-0 bottom-0 w-12 bg-gradient-to-l from-ink-950 to-transparent transition-opacity ${edges.right?'opacity-100':'opacity-0'}`} />
         <button onClick={() => scrollBy(-1)} className={`hidden md:flex items-center justify-center absolute left-1 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-ink-900 ring-1 ring-ink-800 text-ink-300 hover:text-ink-100 z-10 transition ${edges.left?'opacity-100':'opacity-0 pointer-events-none'}`}>
           <Icon name="chevron-left" size={14} />
         </button>
@@ -812,13 +829,25 @@ function SectionHeader({ kicker, title }) {
 // ── Browse view ───────────────────────────────────────────────────────────
 function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, featured, isLocked, premium, userEmail }) {
   const showHero = activeCategory === 'All Shows' && !query && featured;
+  const [highlightId, setHighlightId] = useState(null);
+
+  const scrollToFree = useCallback(() => {
+    const first = videos.find(v => isLocked && !isLocked(v));
+    if (!first) return;
+    const el = document.getElementById(`card-${first.id}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightId(first.id);
+      setTimeout(() => setHighlightId(null), 2500);
+    }
+  }, [videos, isLocked]);
 
   return (
     <div className="space-y-12">
       {showHero && <LiveHero />}
 
-      {/* Premium banner when active and user not logged in */}
-      {premium && !userEmail && (
+      {/* Premium banner when active and user not approved */}
+      {isLocked && videos.some(v => isLocked(v)) && (
         <div className="rounded-xl ring-1 ring-ember/30 bg-ember/8 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="shrink-0 w-9 h-9 rounded-full bg-ember/20 ring-1 ring-ember/30 flex items-center justify-center">
@@ -829,10 +858,17 @@ function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, feature
               <div className="text-[12px] text-ink-400">Sign in or create an account to watch every daily show.</div>
             </div>
           </div>
-          <button onClick={onOpenAuth}
-            className="shrink-0 h-9 px-4 rounded-md bg-ember hover:bg-ember/90 text-ink-950 font-semibold text-[13px] transition">
-            Sign In / Register
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={scrollToFree}
+              className="shrink-0 h-9 px-4 rounded-md ring-1 ring-ember/50 text-ember hover:bg-ember/10 text-[13px] font-medium transition flex items-center gap-1.5">
+              <Icon name="chevrons-down" size={14} />
+              Free shows
+            </button>
+            <button onClick={onOpenAuth}
+              className="shrink-0 h-9 px-4 rounded-md bg-ember hover:bg-ember/90 text-ink-950 font-semibold text-[13px] transition">
+              Sign In / Register
+            </button>
+          </div>
         </div>
       )}
 
@@ -852,7 +888,9 @@ function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, feature
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-5 gap-y-10">
             {videos.map(v => (
-              <VideoCard key={v.id} video={v} onOpen={onOpen} locked={isLocked ? isLocked(v) : false} />
+              <VideoCard key={v.id} video={v} onOpen={onOpen}
+                locked={isLocked ? isLocked(v) : false}
+                highlighted={v.id === highlightId} />
             ))}
           </div>
         )}
