@@ -2,20 +2,20 @@ import os
 import traceback
 from flask import Flask, jsonify
 
-_steps = []
 _base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Step 1: Flask with template + static folders
+# Unconditional top-level assignment — Vercel static check passes
+app = Flask(__name__)
+
+_steps = []
+
+# Step 1: set template + static folders after init
 try:
-    app = Flask(
-        __name__,
-        template_folder=os.path.join(_base_dir, 'templates'),
-        static_folder=os.path.join(_base_dir, 'static'),
-    )
-    _steps.append('OK: Flask init with template_folder + static_folder')
+    app.template_folder = os.path.join(_base_dir, 'templates')
+    app.static_folder   = os.path.join(_base_dir, 'static')
+    _steps.append('OK: template_folder + static_folder')
 except BaseException:
-    app = Flask(__name__)
-    _steps.append('FAIL: Flask init\n' + traceback.format_exc())
+    _steps.append('FAIL: template/static\n' + traceback.format_exc())
 
 # Step 2: dotenv
 try:
@@ -30,8 +30,9 @@ _steps.append(f'__file__ = {__file__}')
 _steps.append(f'_base_dir = {_base_dir}')
 _steps.append(f'templates/ exists = {os.path.isdir(os.path.join(_base_dir, "templates"))}')
 _steps.append(f'static/ exists   = {os.path.isdir(os.path.join(_base_dir, "static"))}')
+_steps.append(f'DATABASE_URL set = {bool(os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL"))}')
 
-# Step 4: after_request decorator
+# Step 4: decorators
 try:
     @app.after_request
     def _cors(r):
@@ -40,18 +41,6 @@ try:
     _steps.append('OK: after_request')
 except BaseException:
     _steps.append('FAIL: after_request\n' + traceback.format_exc())
-
-# Step 5: before_request decorator
-try:
-    @app.before_request
-    def _ping():
-        pass
-    _steps.append('OK: before_request')
-except BaseException:
-    _steps.append('FAIL: before_request\n' + traceback.format_exc())
-
-# Step 6: env vars
-_steps.append(f'DATABASE_URL set = {bool(os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL"))}')
 
 @app.route('/')
 def index():
