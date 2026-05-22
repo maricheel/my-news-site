@@ -917,7 +917,7 @@ function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, feature
       <section>
         <SectionHeader
           kicker={query ? `Results for "${query}"` : activeCategory === 'Free' ? 'Available without subscription' : activeCategory === 'All Shows' ? 'Latest across every show' : `Latest from ${activeCategory}`}
-          title={query ? `${videos.length} segment${videos.length!==1?'s':''}` : activeCategory === 'Free' ? 'Free shows today' : activeCategory === 'All Shows' ? 'Latest video' : activeCategory}
+          title={query ? `${videos.length} segment${videos.length!==1?'s':''}` : activeCategory === 'Free' ? 'Free shows today' : activeCategory === 'All Shows' ? 'Latest Shows' : activeCategory}
         />
         {videos.length === 0 ? (
           <div className="rounded-lg ring-1 ring-ink-800 bg-ink-900/40 p-12 text-center">
@@ -1306,7 +1306,7 @@ function App() {
           <div>
             <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-600 mb-3">Site</div>
             <ul className="space-y-2 text-ink-400">
-              <li><a href="/admin" className="hover:text-ink-100">Admin</a></li>
+              <li><a href="/admin" className="hover:text-ink-100">sds.mo</a></li>
             </ul>
           </div>
         </div>
