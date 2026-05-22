@@ -70,7 +70,7 @@
 
         <div class="rounded-xl bg-ink-900/60 ring-1 ring-ink-800 p-6 md:p-8">
           <div class="prose-content text-[16px] leading-relaxed text-ink-300">
-            ${post.content}
+            ${post.content.replace(/<img[^>]*>/gi,'').replace(/<figure[^>]*>[\s\S]*?<\/figure>/gi,'').replace(/<div[^>]*wp-block-image[^>]*>[\s\S]*?<\/div>/gi,'')}
           </div>
           ${post.categories?.length ? `
           <div class="mt-6 pt-5 border-t border-ink-800 flex flex-wrap gap-1.5">

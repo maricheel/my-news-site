@@ -74,21 +74,32 @@ def clean_categories(raw: list[str], title: str) -> list[str]:
 
 
 # ── Duplicate detection via our own database ──────────────────────────────────
-def get_last_published_wp_id() -> int:
+def already_published(wp_post_id: int, title: str) -> bool:
     """
-    Check our own API for the highest WordPress post ID already published.
-    Works in GitHub Actions where the filesystem is wiped between runs.
+    Return True if this WordPress post has already been published.
+    Checks two ways so it works even for older posts without wp_post_id metadata.
     """
     try:
-        r = requests.get(f'{WEBSITE_URL}/api/posts?limit=20&sort=newest', timeout=15)
+        r = requests.get(f'{WEBSITE_URL}/api/posts?limit=30&sort=newest', timeout=15)
         if r.status_code == 200:
-            for post in r.json().get('posts', []):
-                wp_id = post.get('metadata', {}).get('wp_post_id', 0)
-                if wp_id:
-                    return int(wp_id)
-    except Exception:
-        pass
-    return 0
+            posts = r.json().get('posts', [])
+
+            # 1. Check stored wp_post_id in metadata
+            for post in posts:
+                stored_id = post.get('metadata', {}).get('wp_post_id', 0)
+                if stored_id and int(stored_id) >= wp_post_id:
+                    print(f"ℹ️  Duplicate via wp_post_id: {wp_post_id} already in DB.")
+                    return True
+
+            # 2. Check by title match (covers posts published before wp_post_id tracking)
+            clean_title = html.unescape(title).strip().lower()
+            for post in posts:
+                if html.unescape(post.get('title', '')).strip().lower() == clean_title:
+                    print(f"ℹ️  Duplicate via title match: '{title}' already in DB.")
+                    return True
+    except Exception as e:
+        print(f"[WARN] Duplicate check failed: {e}")
+    return False
 
 
 # ── WordPress fetcher ─────────────────────────────────────────────────────────
@@ -112,14 +123,13 @@ def get_wordpress_post():
         post = posts[0]
         wp_post_id = post['id']
 
-        last_id = get_last_published_wp_id()
-        if wp_post_id <= last_id:
-            print(f"ℹ️ Post {wp_post_id} already published (last known: {last_id}). Nothing new.")
+        # Title and content (fetch early so we can do duplicate check by title)
+        title_raw = post['title']['rendered']
+        if already_published(wp_post_id, html.unescape(title_raw)):
             return None
 
-        # Title — decode HTML entities (e.g. &#8211; → –)
-        title = html.unescape(post['title']['rendered'])
-
+        # Decode HTML entities in title (e.g. &#8211; → –)
+        title   = html.unescape(title_raw)
         content = post['content']['rendered']
 
         # Rumble embed
