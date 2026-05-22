@@ -1,5 +1,5 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
-import json, os, traceback
+from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect
+import json, os, traceback, requests as http_req
 from functools import wraps
 from dotenv import load_dotenv
 
@@ -12,7 +12,10 @@ app.template_folder = os.path.join(_base_dir, 'templates')
 app.static_folder   = os.path.join(_base_dir, 'static')
 
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'change-this-secret')
-API_KEY = os.getenv('API_KEY', 'change-this-key')
+app.config['PERMANENT_SESSION_LIFETIME'] = 60 * 60 * 24 * 30  # 30 days
+API_KEY          = os.getenv('API_KEY', 'change-this-key')
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
+ALLOWED_EMAIL    = 'hicham1elbanaji@gmail.com'
 
 # ── Database ──────────────────────────────────────────────────────────────────
 _raw_db_url = (os.getenv('DATABASE_URL') or os.getenv('POSTGRES_URL')
@@ -94,6 +97,36 @@ def row_to_dict(row):
     }
 
 
+# ── Google auth helpers ───────────────────────────────────────────────────────
+def verify_google_token(token):
+    """Call Google's tokeninfo endpoint to validate an ID token."""
+    try:
+        r = http_req.get(
+            'https://oauth2.googleapis.com/tokeninfo',
+            params={'id_token': token}, timeout=10
+        )
+        if r.status_code != 200:
+            return None
+        info = r.json()
+        if str(info.get('email_verified')).lower() != 'true':
+            return None
+        if GOOGLE_CLIENT_ID and info.get('aud') != GOOGLE_CLIENT_ID:
+            return None
+        return info.get('email')
+    except Exception:
+        return None
+
+
+def require_admin(f):
+    """Redirect to login if the user hasn't authenticated as ALLOWED_EMAIL."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if session.get('admin_email') != ALLOWED_EMAIL:
+            return redirect('/auth/login')
+        return f(*args, **kwargs)
+    return decorated
+
+
 def require_api_key(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -131,8 +164,30 @@ def post_detail(post_id):
     return render_template('post.html', post_id=post_id)
 
 @app.route('/admin')
+@require_admin
 def admin_dashboard():
     return render_template('admin.html')
+
+@app.route('/auth/login')
+def auth_login():
+    if session.get('admin_email') == ALLOWED_EMAIL:
+        return redirect('/admin')
+    return render_template('login.html', google_client_id=GOOGLE_CLIENT_ID)
+
+@app.route('/api/auth/verify', methods=['POST'])
+def auth_verify():
+    token = (request.get_json() or {}).get('token', '')
+    email = verify_google_token(token)
+    if email == ALLOWED_EMAIL:
+        session.permanent = True
+        session['admin_email'] = email
+        return jsonify({'ok': True})
+    return jsonify({'error': 'Access denied. This account is not authorised.'}), 403
+
+@app.route('/api/auth/logout', methods=['POST'])
+def auth_logout():
+    session.clear()
+    return jsonify({'ok': True})
 
 @app.route('/search')
 def search():

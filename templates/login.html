@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Sign in — msnow.click{% endblock %}
+
+{% block content %}
+<div class="min-h-[70vh] flex items-center justify-center">
+  <div class="w-full max-w-sm">
+
+    <!-- Card -->
+    <div class="rounded-2xl bg-ink-900/70 ring-1 ring-ink-800 p-8 text-center">
+
+      <!-- Logo mark -->
+      <div class="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-ember/15 ring-1 ring-ember/30 mb-6">
+        <span class="font-serif text-[28px] leading-none text-ember">M</span>
+      </div>
+
+      <h1 class="font-serif text-2xl text-ink-100 mb-1">Admin access</h1>
+      <p class="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-500 mb-8">msnow.click</p>
+
+      <!-- Google button / error / no-client-id message -->
+      {% if google_client_id %}
+
+        <div id="g-btn" class="flex justify-center mb-4"></div>
+        <p id="err" class="hidden font-mono text-[12px] text-live mt-4"></p>
+        <p class="font-mono text-[11px] text-ink-600 mt-6">Only authorised accounts may sign in.</p>
+
+        <!-- Google Identity Services -->
+        <script src="https://accounts.google.com/gsi/client" async defer></script>
+        <script>
+          window.onload = function() {
+            google.accounts.id.initialize({
+              client_id: '{{ google_client_id }}',
+              callback: handleCredential,
+              ux_mode: 'popup',
+            });
+            google.accounts.id.renderButton(
+              document.getElementById('g-btn'),
+              { theme: 'filled_black', size: 'large', width: 280, shape: 'rectangular' }
+            );
+          };
+
+          async function handleCredential(response) {
+            const errEl = document.getElementById('err');
+            errEl.classList.add('hidden');
+            try {
+              const res = await fetch('/api/auth/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: response.credential }),
+              });
+              const data = await res.json();
+              if (res.ok) {
+                window.location.href = '/admin';
+              } else {
+                errEl.textContent = data.error || 'Access denied.';
+                errEl.classList.remove('hidden');
+              }
+            } catch (e) {
+              errEl.textContent = 'Network error. Please try again.';
+              errEl.classList.remove('hidden');
+            }
+          }
+        </script>
+
+      {% else %}
+        <div class="rounded-lg bg-live/10 ring-1 ring-live/30 px-4 py-3 text-live font-mono text-[12px]">
+          GOOGLE_CLIENT_ID is not configured.<br>Add it to your Vercel environment variables.
+        </div>
+      {% endif %}
+
+    </div>
+
+  </div>
+</div>
+{% endblock %}
