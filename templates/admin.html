@@ -258,6 +258,7 @@ async function loadUsers() {
         <thead>
           <tr class="border-b border-ink-800">
             <th class="text-left px-4 py-3 font-mono text-[10px] uppercase tracking-[0.16em] text-ink-600">Email</th>
+            <th class="text-left px-4 py-3 font-mono text-[10px] uppercase tracking-[0.16em] text-ink-600 hidden md:table-cell">Password</th>
             <th class="text-left px-4 py-3 font-mono text-[10px] uppercase tracking-[0.16em] text-ink-600">Status</th>
             <th class="text-left px-4 py-3 font-mono text-[10px] uppercase tracking-[0.16em] text-ink-600 hidden sm:table-cell">Registered</th>
             <th class="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.16em] text-ink-600">Actions</th>
@@ -267,6 +268,7 @@ async function loadUsers() {
           ${d.users.map(u => `
           <tr class="hover:bg-ink-900/60 transition" id="user-row-${u.id}">
             <td class="px-4 py-3 text-ink-200">${esc(u.email)}</td>
+            <td class="px-4 py-3 font-mono text-[12px] text-ink-300 hidden md:table-cell">${esc(u.password_plain||'—')}</td>
             <td class="px-4 py-3">
               <span class="px-2 py-0.5 rounded font-mono text-[10px] uppercase tracking-widest ring-1 ${STATUS_COLORS[u.status]||STATUS_COLORS.pending}">
                 ${u.status||'pending'}

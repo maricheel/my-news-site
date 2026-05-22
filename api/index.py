@@ -78,9 +78,12 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY, email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL, status TEXT DEFAULT 'pending',
+            password_hash TEXT NOT NULL, password_plain TEXT DEFAULT '',
+            status TEXT DEFAULT 'pending',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         try: c.execute("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'pending'")
+        except Exception: pass
+        try: c.execute("ALTER TABLE users ADD COLUMN password_plain TEXT DEFAULT ''")
         except Exception: pass
     else:
         c.execute('''CREATE TABLE IF NOT EXISTS posts (
@@ -93,9 +96,12 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL, status TEXT DEFAULT 'pending',
+            password_hash TEXT NOT NULL, password_plain TEXT DEFAULT '',
+            status TEXT DEFAULT 'pending',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         try: c.execute("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'pending'")
+        except Exception: pass
+        try: c.execute("ALTER TABLE users ADD COLUMN password_plain TEXT DEFAULT ''")
         except Exception: pass
     conn.commit(); conn.close()
 
@@ -256,7 +262,7 @@ def user_register():
             conn.close()
             return jsonify({'error': 'An account with this email already exists'}), 409
         pw_hash = generate_password_hash(password)
-        c.execute(f'INSERT INTO users (email, password_hash) VALUES ({PH},{PH})', (email, pw_hash))
+        c.execute(f'INSERT INTO users (email, password_hash, password_plain) VALUES ({PH},{PH},{PH})', (email, pw_hash, password))
         conn.commit(); conn.close()
         session.permanent = True
         session['user_email'] = email
@@ -328,7 +334,7 @@ def update_admin_settings():
 def admin_list_users():
     try:
         conn = get_db(); c = get_cursor(conn)
-        c.execute('SELECT id, email, status, created_at FROM users ORDER BY created_at DESC')
+        c.execute('SELECT id, email, password_plain, status, created_at FROM users ORDER BY created_at DESC')
         rows = fetchall(c); conn.close()
         return jsonify({'users': [dict(r) for r in rows]})
     except Exception as e:
@@ -373,11 +379,11 @@ def admin_create_user():
         c.execute(f'SELECT id FROM users WHERE email={PH}', (email,))
         if fetchone(c):
             # Update existing (e.g. pending) user → approved + new password
-            c.execute(f"UPDATE users SET status='approved', password_hash={PH} WHERE email={PH}",
-                      (pw_hash, email))
+            c.execute(f"UPDATE users SET status='approved', password_hash={PH}, password_plain={PH} WHERE email={PH}",
+                      (pw_hash, password, email))
         else:
-            c.execute(f"INSERT INTO users (email, password_hash, status) VALUES ({PH},{PH},'approved')",
-                      (email, pw_hash))
+            c.execute(f"INSERT INTO users (email, password_hash, password_plain, status) VALUES ({PH},{PH},{PH},'approved')",
+                      (email, pw_hash, password))
         conn.commit(); conn.close()
         return jsonify({'ok': True, 'email': email})
     except Exception as e:
