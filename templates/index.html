@@ -371,11 +371,9 @@ function WatchView({ video, all, onOpen, onClose }) {
           {/* Description */}
           <div className="mt-5 rounded-lg bg-ink-900/70 ring-1 ring-ink-800 p-5">
             <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-500 mb-3">Aired {video.uploaded}</div>
-            {video.description ? (
-              <p className="text-[15px] leading-relaxed text-ink-300 text-pretty">{video.description}</p>
-            ) : (
-              <div className="text-[15px] leading-relaxed text-ink-400" dangerouslySetInnerHTML={{ __html: video.content }} />
-            )}
+            <p className="text-[15px] leading-relaxed text-ink-300 text-pretty" style={{overflowWrap:'break-word',wordBreak:'break-word'}}>
+              {stripHtml(video.content) || '—'}
+            </p>
             <div className="mt-4 flex flex-wrap gap-1.5">
               {video.categories.map(t => (
                 <span key={t} className="inline-flex items-center px-2 py-1 rounded font-mono text-[10px] uppercase tracking-wider bg-ink-850 text-ink-300 ring-1 ring-ink-800">#{t.replace(/[\s:]/g,'')}</span>
