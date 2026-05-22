@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, jsonify
-from flask_cors import CORS
 import json
 import os
 from functools import wraps
@@ -14,7 +13,13 @@ app = Flask(
     template_folder=os.path.join(_base_dir, 'templates'),
     static_folder=os.path.join(_base_dir, 'static'),
 )
-CORS(app)
+
+@app.after_request
+def _cors(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    return response
 
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'change-this-secret')
 API_KEY = os.getenv('API_KEY', 'change-this-key')

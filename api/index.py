@@ -1,11 +1,6 @@
-from flask import Flask, jsonify
+import sys
+import os
 
-app = Flask(__name__)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-@app.route('/')
-def index():
-    return '<h1>Diagnostic OK</h1><p>Flask is running. DB will be re-enabled shortly.</p>'
-
-@app.route('/api/health')
-def health():
-    return jsonify({'status': 'ok', 'flask': 'working'})
+from app import app  # noqa: F401 — Vercel needs top-level 'app'
