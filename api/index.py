@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect
-import json, os, traceback, requests as http_req
+import json, os, traceback, re, html as _html, requests as http_req
 from functools import wraps
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -492,6 +492,163 @@ def get_stats():
         last=fetchone(c); conn.close()
         return jsonify({'total_posts':total,'by_source':sources,'last_post':str(last['created_at']) if last else None}),200
     except Exception as e: return jsonify({'error':str(e)}),500
+
+
+# ── Cron: WordPress → site sync ───────────────────────────────────────────────
+_CRON_SHOW_KEYWORDS = [
+    ('morning joe','Morning Joe'),('jansing','Chris Jansing Reports'),
+    ('katy tur','Katy Tur Reports'),('deadline','Deadline: White House'),
+    ('ari melber','The Beat With Ari Melber'),('the beat','The Beat With Ari Melber'),
+    ('weeknight','The Weeknight'),('all in','All In with Chris Hayes'),
+    ('chris hayes','All In with Chris Hayes'),('maddow','The Rachel Maddow Show'),
+    ('rachel maddow','The Rachel Maddow Show'),('jen psaki','The Briefing with Jen Psaki'),
+    ('briefing','The Briefing with Jen Psaki'),
+    ('lawrence',"The Last Word with Lawrence O'Donnell"),
+    ('last word',"The Last Word with Lawrence O'Donnell"),
+    ('11th hour','The 11th Hour with Stephanie Ruhle'),
+    ('stephanie ruhle','The 11th Hour with Stephanie Ruhle'),
+    ('velshi','Velshi'),('alex witt','Alex Witt Reports'),
+    ('al sharpton','PoliticsNation with Al Sharpton'),
+    ('politicsnation','PoliticsNation with Al Sharpton'),('the weekend','The Weekend'),
+]
+_CRON_KNOWN_SHOWS = {v for _,v in _CRON_SHOW_KEYWORDS}
+
+def _cron_detect_show(title):
+    t = title.lower()
+    for kw, show in _CRON_SHOW_KEYWORDS:
+        if kw in t: return show
+    return None
+
+def _cron_clean_cats(raw, title):
+    good = [c for c in raw if c and not c.strip().isdigit() and c.upper() != 'UNCATEGORIZED']
+    show = _cron_detect_show(title)
+    if show and (not good or good[0] not in _CRON_KNOWN_SHOWS):
+        return [show]
+    return good if good else ([show] if show else [])
+
+def _cron_wp_id_exists(conn, wp_id):
+    """Return True if a post with this WordPress ID is already in the DB."""
+    c = get_cursor(conn)
+    try:
+        if USE_POSTGRES:
+            c.execute("SELECT id FROM posts WHERE metadata::jsonb->>'wp_post_id' = %s LIMIT 1", (str(wp_id),))
+        else:
+            c.execute("SELECT id FROM posts WHERE json_extract(metadata,'$.wp_post_id') = ? LIMIT 1", (str(wp_id),))
+        return fetchone(c) is not None
+    except Exception:
+        return False
+
+def _cron_parse_wp_post(raw, conn):
+    """Parse one WP post dict. Returns insert-ready dict or None if skip."""
+    wp_id = raw['id']
+    if _cron_wp_id_exists(conn, wp_id):
+        return None
+
+    title = _html.unescape(raw['title']['rendered']).strip()
+    content = raw['content']['rendered']
+
+    # Rumble embed
+    rumble_link = ''
+    m = re.search(r'https://rumble\.com/embed/([a-zA-Z0-9]+)', content)
+    if m: rumble_link = f'https://rumble.com/embed/{m.group(1)}/'
+
+    # Thumbnail
+    thumbnail_url = ''
+    try:
+        media = raw['_embedded']['wp:featuredmedia'][0]
+        sizes = media.get('media_details', {}).get('sizes', {})
+        thumbnail_url = (
+            sizes.get('medium_large', {}).get('source_url') or
+            sizes.get('large',        {}).get('source_url') or
+            sizes.get('medium',       {}).get('source_url') or
+            media.get('source_url', '')
+        )
+    except Exception: pass
+
+    # Categories
+    raw_cats = []
+    try:
+        for term in raw['_embedded']['wp:term'][0]:
+            if term.get('taxonomy') == 'category':
+                raw_cats.append(_html.unescape(term.get('name', '')))
+    except Exception: pass
+    cats = _cron_clean_cats(raw_cats, title)
+
+    if not cats or cats[0] not in _CRON_KNOWN_SHOWS:
+        print(f'[CRON] Skip #{wp_id} — unrecognised show ({cats}) | {title[:60]}')
+        return None
+
+    excerpt = re.sub(r'<[^>]+>', '', raw.get('excerpt', {}).get('rendered', '')).strip()
+    print(f'[CRON] New post #{wp_id}: {title[:70]}')
+    return {
+        'title': title, 'content': content,
+        'rumble_link': rumble_link, 'thumbnail_url': thumbnail_url,
+        'featured_image_id': raw.get('featured_media', 0),
+        'categories': json.dumps(cats), 'source': 'automation',
+        'metadata': json.dumps({'wp_post_id': wp_id,
+                                'rank_math_description': excerpt,
+                                'focus_keyword': cats[0]}),
+    }
+
+def _cron_insert_post(conn, p):
+    c = get_cursor(conn)
+    if USE_POSTGRES:
+        c.execute(
+            'INSERT INTO posts (title,content,rumble_link,featured_image_id,categories,metadata,source,thumbnail_url) '
+            'VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id',
+            (p['title'],p['content'],p['rumble_link'],p['featured_image_id'],
+             p['categories'],p['metadata'],p['source'],p['thumbnail_url'])
+        )
+        return fetchone(c)['id']
+    else:
+        c.execute(
+            'INSERT INTO posts (title,content,rumble_link,featured_image_id,categories,metadata,source,thumbnail_url) '
+            'VALUES (?,?,?,?,?,?,?,?)',
+            (p['title'],p['content'],p['rumble_link'],p['featured_image_id'],
+             p['categories'],p['metadata'],p['source'],p['thumbnail_url'])
+        )
+        return c.lastrowid
+
+@app.route('/api/cron', methods=['GET','POST'])
+@require_api_key
+def run_cron():
+    wp_url = os.getenv('WORDPRESS_URL', '').rstrip('/')
+    if not wp_url:
+        return jsonify({'error': 'WORDPRESS_URL not configured'}), 500
+    try:
+        resp = http_req.get(
+            f'{wp_url}/wp-json/wp/v2/posts',
+            params={'per_page': 10, 'order': 'desc', '_embed': '1'},
+            timeout=15
+        )
+        if resp.status_code != 200:
+            return jsonify({'error': f'WordPress returned {resp.status_code}'}), 502
+        raw_posts = resp.json()
+    except Exception as e:
+        return jsonify({'error': f'WordPress fetch failed: {e}'}), 502
+
+    # Oldest first so timeline stays correct
+    raw_posts = list(reversed(raw_posts))
+
+    conn = get_db()
+    published = 0; skipped = 0; failed = 0
+    try:
+        for raw in raw_posts:
+            p = _cron_parse_wp_post(raw, conn)
+            if p is None:
+                skipped += 1
+                continue
+            try:
+                _cron_insert_post(conn, p)
+                conn.commit()
+                published += 1
+            except Exception as e:
+                print(f'[CRON] Insert failed: {e}')
+                failed += 1
+    finally:
+        conn.close()
+
+    return jsonify({'published': published, 'skipped': skipped, 'failed': failed}), 200
 
 
 # ── Lazy DB init ──────────────────────────────────────────────────────────────
