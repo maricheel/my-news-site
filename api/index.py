@@ -1,11 +1,11 @@
-import sys
-import os
+from flask import Flask, jsonify
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+app = Flask(__name__)
 
-from app import app, init_db  # app must be importable at top level for Vercel
+@app.route('/')
+def index():
+    return '<h1>Diagnostic OK</h1><p>Flask is running. DB will be re-enabled shortly.</p>'
 
-try:
-    init_db()
-except Exception as e:
-    print(f"[WARN] init_db: {e}")
+@app.route('/api/health')
+def health():
+    return jsonify({'status': 'ok', 'flask': 'working'})
