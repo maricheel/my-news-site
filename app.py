@@ -23,40 +23,32 @@ API_KEY = os.getenv('API_KEY', 'change-this-key')
 _raw_db_url  = (os.getenv('DATABASE_URL') or os.getenv('POSTGRES_URL')
                 or os.getenv('POSTGRES_PRISMA_URL') or os.getenv('POSTGRES_URL_NON_POOLING'))
 USE_POSTGRES = bool(_raw_db_url)
+PH = '%s' if USE_POSTGRES else '?'
 
-if USE_POSTGRES:
-    import pg8000
-    import pg8000.dbapi
-    from urllib.parse import urlparse as _urlparse
-    import ssl as _ssl
-    PH = '%s'
-
-    def _parse_db_url(raw):
-        u = _urlparse(raw)
-        ssl_ctx = _ssl.create_default_context()
-        ssl_ctx.check_hostname = False
-        ssl_ctx.verify_mode = _ssl.CERT_NONE
-        return {
-            'host':        u.hostname,
-            'port':        u.port or 5432,
-            'user':        u.username,
-            'password':    u.password,
-            'database':    u.path.lstrip('/').split('?')[0],
-            'ssl_context': ssl_ctx,
-        }
-
-    _db_params = _parse_db_url(_raw_db_url)
-
-else:
-    import sqlite3
-    PH = '?'
-    _sqlite_path = '/tmp/database.db' if os.getenv('VERCEL') else os.path.join(_base_dir, 'database.db')
+# SQLite path (only used when not on Postgres)
+_sqlite_path = '/tmp/database.db' if os.getenv('VERCEL') else os.path.join(_base_dir, 'database.db')
 
 
 def get_db():
     if USE_POSTGRES:
-        return pg8000.dbapi.connect(**_db_params)
+        # Imports inside function — never crash at module load time
+        import pg8000.dbapi
+        import ssl
+        from urllib.parse import urlparse
+        u = urlparse(_raw_db_url)
+        ssl_ctx = ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl.CERT_NONE
+        return pg8000.dbapi.connect(
+            host=u.hostname,
+            port=u.port or 5432,
+            user=u.username,
+            password=u.password,
+            database=u.path.lstrip('/').split('?')[0],
+            ssl_context=ssl_ctx,
+        )
     else:
+        import sqlite3
         conn = sqlite3.connect(_sqlite_path)
         conn.row_factory = sqlite3.Row
         return conn
@@ -88,7 +80,7 @@ def fetchone(cursor):
 
 # ── Schema ──────────────────────────────────────────────────────────────────
 def init_db():
-    conn = get_db()
+    conn = get_db()  # get_db() handles all imports internally
     c = get_cursor(conn)
 
     if USE_POSTGRES:
