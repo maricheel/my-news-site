@@ -78,8 +78,10 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY, email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
+            password_hash TEXT NOT NULL, status TEXT DEFAULT 'pending',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        try: c.execute("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'pending'")
+        except Exception: pass
     else:
         c.execute('''CREATE TABLE IF NOT EXISTS posts (
             id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL,
@@ -91,8 +93,10 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
+            password_hash TEXT NOT NULL, status TEXT DEFAULT 'pending',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        try: c.execute("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'pending'")
+        except Exception: pass
     conn.commit(); conn.close()
 
 
@@ -256,7 +260,7 @@ def user_register():
         conn.commit(); conn.close()
         session.permanent = True
         session['user_email'] = email
-        return jsonify({'ok': True, 'email': email}), 201
+        return jsonify({'ok': True, 'email': email, 'status': 'pending'}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -269,13 +273,14 @@ def user_login():
         return jsonify({'error': 'Email and password are required'}), 400
     try:
         conn = get_db(); c = get_cursor(conn)
-        c.execute(f'SELECT password_hash FROM users WHERE email={PH}', (email,))
+        c.execute(f'SELECT password_hash, status FROM users WHERE email={PH}', (email,))
         row = fetchone(c); conn.close()
         if not row or not check_password_hash(row['password_hash'], password):
             return jsonify({'error': 'Invalid email or password'}), 401
         session.permanent = True
         session['user_email'] = email
-        return jsonify({'ok': True, 'email': email})
+        status = row.get('status') or 'pending'
+        return jsonify({'ok': True, 'email': email, 'status': status})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -287,7 +292,69 @@ def user_logout():
 @app.route('/api/auth/user-status', methods=['GET'])
 def user_status():
     email = session.get('user_email')
-    return jsonify({'logged_in': bool(email), 'email': email or ''})
+    if not email:
+        return jsonify({'logged_in': False, 'email': '', 'status': ''})
+    try:
+        conn = get_db(); c = get_cursor(conn)
+        c.execute(f'SELECT status FROM users WHERE email={PH}', (email,))
+        row = fetchone(c); conn.close()
+        status = (row.get('status') or 'pending') if row else 'pending'
+        return jsonify({'logged_in': True, 'email': email, 'status': status})
+    except Exception:
+        return jsonify({'logged_in': True, 'email': email, 'status': 'pending'})
+
+# ── API: contact info (public) ────────────────────────────────────────────
+@app.route('/api/settings/contact', methods=['GET'])
+def get_contact():
+    return jsonify({
+        'whatsapp': get_setting('admin_whatsapp', ''),
+        'email': ALLOWED_EMAIL,
+    })
+
+# ── API: admin — update settings ──────────────────────────────────────────
+@app.route('/api/admin/settings', methods=['POST'])
+@require_admin
+def update_admin_settings():
+    data = request.get_json() or {}
+    allowed_keys = {'admin_whatsapp'}
+    for key, val in data.items():
+        if key in allowed_keys:
+            set_setting(key, str(val).strip())
+    return jsonify({'ok': True})
+
+# ── API: admin — user management ──────────────────────────────────────────
+@app.route('/api/admin/users', methods=['GET'])
+@require_admin
+def admin_list_users():
+    try:
+        conn = get_db(); c = get_cursor(conn)
+        c.execute('SELECT id, email, status, created_at FROM users ORDER BY created_at DESC')
+        rows = fetchall(c); conn.close()
+        return jsonify({'users': [dict(r) for r in rows]})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/users/<int:user_id>/approve', methods=['POST'])
+@require_admin
+def admin_approve_user(user_id):
+    try:
+        conn = get_db(); c = get_cursor(conn)
+        c.execute(f"UPDATE users SET status='approved' WHERE id={PH}", (user_id,))
+        conn.commit(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/users/<int:user_id>/reject', methods=['POST'])
+@require_admin
+def admin_reject_user(user_id):
+    try:
+        conn = get_db(); c = get_cursor(conn)
+        c.execute(f"UPDATE users SET status='rejected' WHERE id={PH}", (user_id,))
+        conn.commit(); conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/search')
