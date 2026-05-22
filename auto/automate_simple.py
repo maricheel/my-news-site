@@ -16,7 +16,7 @@ load_dotenv()
 
 WEBSITE_URL  = os.getenv('WEBSITE_URL', 'https://your-domain.vercel.app')
 API_KEY      = os.getenv('API_KEY', 'your_api_key_here')
-WORDPRESS_URL = os.getenv('WORDPRESS_URL', 'https://thuyance.com')
+WORDPRESS_URL = os.getenv('WORDPRESS_URL', 'https://topnewsshow.com')
 
 # ── Show detection ────────────────────────────────────────────────────────────
 # Maps lowercase keywords (from the title) → canonical show name.

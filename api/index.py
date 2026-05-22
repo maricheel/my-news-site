@@ -621,7 +621,7 @@ def run_cron():
         return jsonify({'error': 'Unauthorized'}), 401
 
     # WORDPRESS_URL: env var first, then hardcoded fallback
-    wp_url = (os.getenv('WORDPRESS_URL') or 'https://thuyance.com').rstrip('/')
+    wp_url = (os.getenv('WORDPRESS_URL') or 'https://topnewsshow.com').rstrip('/')
 
     try:
         resp = http_req.get(
