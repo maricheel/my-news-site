@@ -877,6 +877,15 @@ function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, feature
 
   return (
     <div className="space-y-12">
+
+      {/* Top info bar — shown in free/premium mode */}
+      {isLocked && videos.some(v => isLocked(v)) && (
+        <div className="flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-lg bg-ink-900/60 ring-1 ring-ink-800 text-[13px] text-ink-400">
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
+          <span>Daily political coverage from every <strong className="text-ink-200 font-medium">MSNOW</strong> show. Updated every 15 minutes.</span>
+        </div>
+      )}
+
       {showHero && <LiveHero />}
 
       {/* Premium banner when active and user not approved */}
