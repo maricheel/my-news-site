@@ -573,11 +573,9 @@ function Header({ query, setQuery, onOpenMenu }) {
           <Icon name="menu" size={20} />
         </button>
         <a href="#" className="flex items-center gap-2 shrink-0">
-          <span className="relative inline-flex items-center justify-center w-7 h-7 rounded-sm bg-ember text-ink-950">
-            <span className="font-serif text-[18px] leading-none translate-y-px">M</span>
-            <span className="absolute -right-0.5 -bottom-0.5 w-1.5 h-1.5 rounded-full bg-ink-100 ring-2 ring-ink-950" />
-          </span>
-          {/* Hide logo text on small screens to give search bar room */}
+          {/* Mobile: favicon image; Desktop: hidden */}
+          <img src="/static/images/favicon.png" alt="msnow.click" className="sm:hidden w-7 h-7 rounded-sm object-cover" />
+          {/* Desktop: text logo only, no icon */}
           <div className="hidden sm:flex items-baseline gap-1.5">
             <span className="font-serif text-[22px] leading-none text-ink-100 tracking-tight">msnow.click</span>
             <span className="hidden md:inline font-mono text-[10px] uppercase tracking-[0.2em] text-ink-500 translate-y-px">/ live</span>
