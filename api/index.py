@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 import json, os, traceback
 from functools import wraps
 from dotenv import load_dotenv
@@ -123,7 +123,8 @@ def _global_error(e):
 # ── Page routes ───────────────────────────────────────────────────────────────
 @app.route('/')
 def index():
-    return render_template('index.html')
+    # index.html is a React SPA — serve raw, skip Jinja2 (JSX {{ }} breaks Jinja)
+    return send_from_directory(app.template_folder, 'index.html')
 
 @app.route('/post/<int:post_id>')
 def post_detail(post_id):
