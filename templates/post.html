@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Post — msnow.click{% endblock %}
+{% block title %}Watch on MSNOW{% endblock %}
 
 {% block content %}
 <div id="post-wrap" class="max-w-[860px] mx-auto min-w-0 overflow-x-hidden">
@@ -28,7 +28,51 @@
     if (!res.ok) throw new Error('not found');
     const post = await res.json();
 
-    document.title = post.title + ' — msnow.click';
+    // ── SEO: title + meta tags + JSON-LD ──────────────────────────────────────
+    document.title = post.title + ' — MSNOW';
+    const desc = (post.content||'').replace(/<[^>]+>/g,' ').replace(/\s{2,}/g,' ').trim().slice(0,160);
+    const canonical = `https://msnow.click/post/${post.id}`;
+    const img = post.thumbnail_url || 'https://msnow.click/static/images/logo.png';
+
+    const setMeta = (sel, attr, val) => {
+      let el = document.querySelector(sel);
+      if (!el) { el = document.createElement('meta'); document.head.appendChild(el); }
+      el.setAttribute(attr, val);
+    };
+    // Description
+    setMeta('meta[name="description"]', 'content', desc);
+    setMeta('meta[name="robots"]', 'content', 'index, follow');
+    // Canonical
+    let can = document.querySelector('link[rel="canonical"]');
+    if (!can) { can = document.createElement('link'); can.rel='canonical'; document.head.appendChild(can); }
+    can.href = canonical;
+    // OG
+    setMeta('meta[property="og:type"]',        'content', 'video.other');
+    setMeta('meta[property="og:title"]',       'content', post.title + ' — MSNOW');
+    setMeta('meta[property="og:description"]', 'content', desc);
+    setMeta('meta[property="og:url"]',         'content', canonical);
+    setMeta('meta[property="og:image"]',       'content', img);
+    setMeta('meta[property="og:site_name"]',   'content', 'MSNOW');
+    // Twitter
+    setMeta('meta[name="twitter:card"]',        'content', 'summary_large_image');
+    setMeta('meta[name="twitter:title"]',       'content', post.title + ' — MSNOW');
+    setMeta('meta[name="twitter:description"]', 'content', desc);
+    setMeta('meta[name="twitter:image"]',       'content', img);
+    // JSON-LD VideoObject
+    const ld = {
+      "@context": "https://schema.org",
+      "@type": "VideoObject",
+      "name": post.title,
+      "description": desc,
+      "thumbnailUrl": img,
+      "uploadDate": post.created_at,
+      "url": canonical,
+      "embedUrl": post.rumble_link || '',
+      "publisher": { "@type": "Organization", "name": "MSNOW", "url": "https://msnow.click" }
+    };
+    let ldScript = document.getElementById('ld-json');
+    if (!ldScript) { ldScript = document.createElement('script'); ldScript.id='ld-json'; ldScript.type='application/ld+json'; document.head.appendChild(ldScript); }
+    ldScript.textContent = JSON.stringify(ld);
 
     const show = post.categories?.[0] || '';
     const hosts = {

@@ -3,8 +3,24 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>{% block title %}msnow.click{% endblock %}</title>
+<title>{% block title %}MSNOW — Daily Political Coverage{% endblock %}</title>
+<meta name="description" content="{% block meta_description %}Daily political coverage from every MSNOW show. Updated every 15 minutes.{% endblock %}" />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href="{% block canonical %}https://msnow.click/{% endblock %}" />
+<!-- Open Graph -->
+<meta property="og:site_name" content="MSNOW" />
+<meta property="og:type" content="{% block og_type %}website{% endblock %}" />
+<meta property="og:title" content="{% block og_title %}MSNOW — Daily Political Coverage{% endblock %}" />
+<meta property="og:description" content="{% block og_description %}Daily political coverage from every MSNOW show. Updated every 15 minutes.{% endblock %}" />
+<meta property="og:url" content="{% block og_url %}https://msnow.click/{% endblock %}" />
+<meta property="og:image" content="{% block og_image %}https://msnow.click/static/images/logo.png{% endblock %}" />
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="{% block tw_title %}MSNOW — Daily Political Coverage{% endblock %}" />
+<meta name="twitter:description" content="{% block tw_description %}Daily political coverage from every MSNOW show. Updated every 15 minutes.{% endblock %}" />
+<meta name="twitter:image" content="{% block tw_image %}https://msnow.click/static/images/logo.png{% endblock %}" />
 <link rel="icon" type="image/png" href="/static/images/favicon.png">
+<link rel="apple-touch-icon" href="/static/images/favicon.png">
 <script>
   (function(){ try{ if(localStorage.getItem('theme')==='light') document.documentElement.classList.add('light'); }catch(e){} })();
 </script>

@@ -3,7 +3,32 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>msnow.click</title>
+<title>MSNOW — Daily Political Coverage, Every Show</title>
+<meta name="description" content="Watch every MSNOW show daily. Morning Joe, Rachel Maddow, Chris Hayes, Ari Melber and more. Updated every 15 minutes." />
+<link rel="canonical" href="https://msnow.click/" />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="MSNOW" />
+<meta property="og:title" content="MSNOW — Daily Political Coverage, Every Show" />
+<meta property="og:description" content="Watch every MSNOW show daily. Morning Joe, Rachel Maddow, Chris Hayes, Ari Melber and more. Updated every 15 minutes." />
+<meta property="og:url" content="https://msnow.click/" />
+<meta property="og:image" content="https://msnow.click/static/images/logo.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:locale" content="en_US" />
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="MSNOW — Daily Political Coverage, Every Show" />
+<meta name="twitter:description" content="Watch every MSNOW show daily. Morning Joe, Rachel Maddow, Chris Hayes, Ari Melber and more. Updated every 15 minutes." />
+<meta name="twitter:image" content="https://msnow.click/static/images/logo.png" />
+
+<!-- Search / indexing hints -->
+<meta name="robots" content="index, follow" />
+<meta name="keywords" content="MSNOW, political news, Morning Joe, Rachel Maddow, Chris Hayes, Ari Melber, daily shows, news video" />
+<meta name="author" content="MSNOW" />
+
 <link rel="icon" type="image/png" href="/static/images/favicon.png">
 
 <!-- PWA -->
@@ -145,14 +170,42 @@
     });
   }
 </script>
+
+<!-- JSON-LD: WebSite structured data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "MSNOW",
+  "url": "https://msnow.click",
+  "description": "Daily political coverage from every MSNOW show. Morning Joe, Rachel Maddow, Chris Hayes, Ari Melber and more.",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": "https://msnow.click/?q={search_term_string}"
+    },
+    "query-input": "required name=search_term_string"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "MSNOW",
+    "url": "https://msnow.click",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://msnow.click/static/images/logo.png"
+    }
+  }
+}
+</script>
 </head>
 <body class="min-h-screen">
 <div id="root"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js"></script>
-<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 
 <script type="text/babel">

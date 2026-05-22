@@ -178,12 +178,27 @@ def require_api_key(f):
     return decorated
 
 
-# ── CORS ──────────────────────────────────────────────────────────────────────
+# ── CORS + Security + Cache headers ───────────────────────────────────────────
 @app.after_request
-def _cors(response):
+def _headers(response):
+    # CORS
     response.headers['Access-Control-Allow-Origin']  = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, DELETE, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    # Security headers
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options']        = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection']       = '1; mode=block'
+    response.headers['Referrer-Policy']        = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy']     = 'camera=(), microphone=(), geolocation=()'
+    # Cache static assets aggressively; API + HTML never cached
+    path = request.path
+    if path.startswith('/static/'):
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    elif path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-store'
+    else:
+        response.headers['Cache-Control'] = 'public, max-age=60, stale-while-revalidate=300'
     return response
 
 
@@ -191,6 +206,48 @@ def _cors(response):
 @app.errorhandler(Exception)
 def _global_error(e):
     return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
+
+
+# ── robots.txt ────────────────────────────────────────────────────────────────
+@app.route('/robots.txt')
+def robots_txt():
+    body = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /admin\n"
+        "Disallow: /auth/\n"
+        "Disallow: /api/\n"
+        "\n"
+        "Sitemap: https://msnow.click/sitemap.xml\n"
+    )
+    return app.response_class(body, mimetype='text/plain')
+
+
+# ── sitemap.xml ───────────────────────────────────────────────────────────────
+@app.route('/sitemap.xml')
+def sitemap_xml():
+    from datetime import timezone
+    try:
+        conn = get_db(); c = get_cursor(conn)
+        c.execute('SELECT id, created_at FROM posts ORDER BY created_at DESC LIMIT 200')
+        rows = fetchall(c); conn.close()
+    except Exception:
+        rows = []
+    urls = ['<?xml version="1.0" encoding="UTF-8"?>',
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    # Homepage
+    urls.append('<url><loc>https://msnow.click/</loc>'
+                '<changefreq>hourly</changefreq><priority>1.0</priority></url>')
+    for row in rows:
+        dt = str(row.get('created_at',''))[:10]
+        urls.append(f'<url>'
+                    f'<loc>https://msnow.click/post/{row["id"]}</loc>'
+                    f'<lastmod>{dt}</lastmod>'
+                    f'<changefreq>never</changefreq>'
+                    f'<priority>0.8</priority>'
+                    f'</url>')
+    urls.append('</urlset>')
+    return app.response_class('\n'.join(urls), mimetype='application/xml')
 
 
 # ── Page routes ───────────────────────────────────────────────────────────────
