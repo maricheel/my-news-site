@@ -81,10 +81,9 @@ def init_db():
             password_hash TEXT NOT NULL, password_plain TEXT DEFAULT '',
             status TEXT DEFAULT 'pending',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-        try: c.execute("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'pending'")
-        except Exception: pass
-        try: c.execute("ALTER TABLE users ADD COLUMN password_plain TEXT DEFAULT ''")
-        except Exception: pass
+        # IF NOT EXISTS avoids aborting the Postgres transaction on duplicate columns
+        c.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'")
+        c.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_plain TEXT DEFAULT ''")
     else:
         c.execute('''CREATE TABLE IF NOT EXISTS posts (
             id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL,
