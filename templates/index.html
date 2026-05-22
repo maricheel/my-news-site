@@ -61,7 +61,56 @@
   .fade-up { animation: fadeUp 0.35s ease-out both; }
   @keyframes spin { to{transform:rotate(360deg)} }
   .spin { animation: spin 0.8s linear infinite; }
+
+  /* ── Light mode ─────────────────────────────────────────────────────────── */
+  html.light, html.light body { background-color:#f5f4f1; color:#18181a; }
+  /* Solid backgrounds */
+  html.light .bg-ink-950{background-color:#f5f4f1!important}
+  html.light .bg-ink-900{background-color:#edece8!important}
+  html.light .bg-ink-850{background-color:#e4e3df!important}
+  html.light .bg-ink-800{background-color:#dddcd8!important}
+  /* Opacity bg variants */
+  html.light .bg-ink-950\/85{background-color:rgba(245,244,241,.92)!important}
+  html.light .bg-ink-950\/70{background-color:rgba(245,244,241,.78)!important}
+  html.light .bg-ink-950\/40{background-color:rgba(245,244,241,.45)!important}
+  html.light .bg-ink-950\/35{background-color:rgba(245,244,241,.40)!important}
+  html.light .bg-ink-900\/60{background-color:rgba(237,236,232,.65)!important}
+  html.light .bg-ink-900\/40{background-color:rgba(237,236,232,.45)!important}
+  html.light .bg-ink-900\/70{background-color:rgba(237,236,232,.78)!important}
+  html.light .bg-ink-850\/60{background-color:rgba(228,227,223,.65)!important}
+  /* Text */
+  html.light .text-ink-100{color:#18181a!important}
+  html.light .text-ink-200{color:#2e2e34!important}
+  html.light .text-ink-300{color:#44444c!important}
+  html.light .text-ink-400{color:#60606a!important}
+  html.light .text-ink-500{color:#80808c!important}
+  html.light .text-ink-600{color:#a0a0ae!important}
+  /* Borders */
+  html.light .border-ink-800{border-color:#cccbc7!important}
+  html.light .border-ink-850{border-color:#d4d3cf!important}
+  html.light .divide-ink-850>*+*{border-color:#d4d3cf!important}
+  /* Rings */
+  html.light .ring-ink-800{--tw-ring-color:#cccbc7!important}
+  html.light .ring-ink-700{--tw-ring-color:#b8b7b3!important}
+  html.light .ring-ink-500{--tw-ring-color:#96969e!important}
+  html.light .ring-white\/5{--tw-ring-color:rgba(0,0,0,.07)!important}
+  html.light .ring-white\/10{--tw-ring-color:rgba(0,0,0,.10)!important}
+  html.light .ring-white\/15{--tw-ring-color:rgba(0,0,0,.12)!important}
+  /* Gradients */
+  html.light .from-ink-900{--tw-gradient-from:#edece8 var(--tw-gradient-from-position)!important}
+  html.light .to-ink-950{--tw-gradient-to:#f5f4f1 var(--tw-gradient-to-position)!important}
+  html.light .from-ink-950\/85{--tw-gradient-from:rgba(245,244,241,.85) var(--tw-gradient-from-position)!important}
+  html.light .from-ink-950\/75{--tw-gradient-from:rgba(245,244,241,.75) var(--tw-gradient-from-position)!important}
+  /* Hover states */
+  html.light .hover\:bg-ink-900:hover{background-color:#edece8!important}
+  html.light .hover\:bg-ink-850\/60:hover{background-color:rgba(228,227,223,.65)!important}
+  /* Scrollbar */
+  html.light .scrollbar-thin::-webkit-scrollbar-thumb{background:#c8c7c3}
 </style>
+<script>
+  /* Apply stored theme before first paint to avoid flash */
+  (function(){ try{ if(localStorage.getItem('theme')==='light') document.documentElement.classList.add('light'); }catch(e){} })();
+</script>
 </head>
 <body class="min-h-screen">
 <div id="root"></div>
@@ -564,11 +613,11 @@ function Hero({ featured, onOpen }) {
 }
 
 // ── Header ────────────────────────────────────────────────────────────────
-function Header({ query, setQuery, onOpenMenu }) {
+function Header({ query, setQuery, onOpenMenu, theme, onToggleTheme }) {
   const [focused, setFocused] = useState(false);
   return (
     <header className="sticky top-0 z-40 bg-ink-950/85 backdrop-blur-xl border-b border-ink-800/70">
-      <div className="max-w-[1400px] mx-auto px-4 md:px-8 h-16 flex items-center gap-4 md:gap-8">
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 h-14 md:h-16 flex items-center gap-3 md:gap-6">
         <button type="button" onClick={onOpenMenu} className="md:hidden p-2 -ml-2 text-ink-300 hover:text-ink-100" aria-label="Menu">
           <Icon name="menu" size={20} />
         </button>
@@ -598,11 +647,11 @@ function Header({ query, setQuery, onOpenMenu }) {
           </label>
         </div>
 
-        <div className="hidden md:flex items-center gap-1 shrink-0">
-          <a href="/admin" className="inline-flex items-center gap-2 h-9 px-3 rounded-md ring-1 ring-ink-700 hover:ring-ink-500 text-ink-300 hover:text-ink-100 text-[13px] transition">
-            <Icon name="settings" size={14} />Admin
-          </a>
-        </div>
+        {/* Theme toggle — always visible */}
+        <button onClick={onToggleTheme} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          className="shrink-0 flex items-center justify-center w-8 h-8 rounded-md ring-1 ring-ink-700 hover:ring-ink-500 text-ink-400 hover:text-ink-100 transition">
+          <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15} />
+        </button>
       </div>
     </header>
   );
@@ -731,6 +780,16 @@ function App() {
   const [active, setActive] = useState('All Shows');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [playing, setPlaying] = useState(null);
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('theme') || 'dark'; } catch { return 'dark'; }
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('light', theme === 'light');
+    try { localStorage.setItem('theme', theme); } catch {}
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
 
   const VALID_CATEGORIES = new Set(CATEGORIES.filter(c => c !== 'All Shows'));
 
@@ -779,7 +838,7 @@ function App() {
 
   return (
     <div className="min-h-screen text-ink-100">
-      <Header query={query} setQuery={setQuery} onOpenMenu={() => setDrawerOpen(true)} />
+      <Header query={query} setQuery={setQuery} onOpenMenu={() => setDrawerOpen(true)} theme={theme} onToggleTheme={toggleTheme} />
       <CategoryBar categories={CATEGORIES} active={active} setActive={c => { setActive(c); setPlaying(null); }} counts={counts} />
       <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} categories={CATEGORIES} active={active} setActive={setActive} counts={counts} />
 
@@ -799,10 +858,9 @@ function App() {
       <footer className="border-t border-ink-800 mt-16">
         <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-10 grid md:grid-cols-4 gap-8 text-[13px]">
           <div className="md:col-span-2">
-            <div className="flex items-center gap-2.5">
-              <span className="relative inline-flex items-center justify-center w-7 h-7 rounded-sm bg-ember text-ink-950">
-                <span className="font-serif text-[18px] leading-none translate-y-px">M</span>
-              </span>
+            <div className="flex items-center gap-2">
+              {/* Mobile: favicon; Desktop: text only */}
+              <img src="/static/images/favicon.png" alt="" className="sm:hidden w-6 h-6 rounded-sm object-cover" />
               <span className="font-serif text-xl text-ink-100">msnow.click</span>
             </div>
             <p className="mt-3 text-ink-500 max-w-sm">Daily political coverage from every MSNBC show. Auto-updated every 15 minutes.</p>

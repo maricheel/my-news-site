@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>{% block title %}msnow.click{% endblock %}</title>
 <link rel="icon" type="image/png" href="/static/images/favicon.png">
+<script>
+  (function(){ try{ if(localStorage.getItem('theme')==='light') document.documentElement.classList.add('light'); }catch(e){} })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -34,6 +37,25 @@ tailwind.config = {
   .fade-up{animation:fadeUp .35s ease-out both}
   @keyframes spin{to{transform:rotate(360deg)}}
   .spin{animation:spin .8s linear infinite}
+  /* Light mode */
+  html.light,html.light body{background-color:#f5f4f1;color:#18181a}
+  html.light .bg-ink-950{background-color:#f5f4f1!important}
+  html.light .bg-ink-900{background-color:#edece8!important}
+  html.light .bg-ink-900\/60{background-color:rgba(237,236,232,.65)!important}
+  html.light .bg-ink-900\/40{background-color:rgba(237,236,232,.45)!important}
+  html.light .bg-ink-950\/90{background-color:rgba(245,244,241,.92)!important}
+  html.light .bg-ink-850{background-color:#e4e3df!important}
+  html.light .text-ink-100{color:#18181a!important}
+  html.light .text-ink-200{color:#2e2e34!important}
+  html.light .text-ink-300{color:#44444c!important}
+  html.light .text-ink-400{color:#60606a!important}
+  html.light .text-ink-500{color:#80808c!important}
+  html.light .text-ink-600{color:#a0a0ae!important}
+  html.light .border-ink-800{border-color:#cccbc7!important}
+  html.light .border-ink-800\/70{border-color:rgba(204,203,199,.7)!important}
+  html.light .ring-ink-800{--tw-ring-color:#cccbc7!important}
+  html.light .ring-ink-700{--tw-ring-color:#b8b7b3!important}
+  html.light .bg-ink-950\/90{background-color:rgba(245,244,241,.92)!important}
 </style>
 </head>
 <body class="min-h-screen">
