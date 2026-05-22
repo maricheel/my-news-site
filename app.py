@@ -358,7 +358,13 @@ def server_error(e):
     return jsonify({'error': 'Internal server error'}), 500
 
 
+# ── Startup ───────────────────────────────────────────────────────────────────
+# Runs on both local dev and Vercel (module is imported at startup)
+try:
+    init_db()
+except Exception as e:
+    print(f"[WARN] init_db: {e}")
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == '__main__':
-    init_db()
     app.run(debug=True, host='127.0.0.1', port=5000)
