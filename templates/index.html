@@ -386,18 +386,27 @@ function RelatedCard({ video, onOpen, active, locked }) {
 }
 
 // ── Category chip ─────────────────────────────────────────────────────────
-function CategoryChip({ label, active, count, onClick }) {
+function CategoryChip({ label, active, count, onClick, highlight }) {
+  const textCls = highlight
+    ? (active ? 'text-emerald-300' : 'text-emerald-500 hover:text-emerald-300')
+    : (active ? 'text-ink-100'    : 'text-ink-400 hover:text-ink-200');
+  const barCls  = highlight
+    ? (active ? 'bg-emerald-400' : 'bg-transparent')
+    : (active ? 'bg-ember'       : 'bg-transparent');
+  const cntCls  = highlight
+    ? (active ? 'text-emerald-400' : 'text-emerald-600')
+    : (active ? 'text-ember-soft'  : 'text-ink-600');
   return (
     <button type="button" onClick={onClick}
-      className={`relative whitespace-nowrap shrink-0 px-3 py-3 md:py-2 text-[13px] font-medium transition-colors
-        ${active ? 'text-ink-100' : 'text-ink-400 hover:text-ink-200'}`}>
+      className={`relative whitespace-nowrap shrink-0 px-3 py-3 md:py-2 text-[13px] font-medium transition-colors ${textCls}`}>
       <span className="inline-flex items-center gap-1.5">
+        {highlight && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 opacity-80" />}
         {label}
         {typeof count === 'number' && (
-          <span className={`font-mono text-[10px] tabular-nums ${active ? 'text-ember-soft' : 'text-ink-600'}`}>{count}</span>
+          <span className={`font-mono text-[10px] tabular-nums ${cntCls}`}>{count}</span>
         )}
       </span>
-      <span className={`pointer-events-none absolute left-2 right-2 -bottom-px h-px transition-colors ${active ? 'bg-ember' : 'bg-transparent'}`} />
+      <span className={`pointer-events-none absolute left-2 right-2 -bottom-px h-px transition-colors ${barCls}`} />
     </button>
   );
 }
@@ -776,7 +785,7 @@ function CategoryBar({ categories, active, setActive, counts }) {
         <div ref={scrollRef} className="no-scrollbar overflow-x-auto -mx-1 px-1">
           <div className="flex items-stretch min-w-max">
             {categories.map(c => (
-              <CategoryChip key={c} label={c} count={counts[c]} active={active === c} onClick={() => setActive(c)} />
+              <CategoryChip key={c} label={c} count={counts[c]} active={active === c} onClick={() => setActive(c)} highlight={c === 'Free'} />
             ))}
           </div>
         </div>
@@ -801,9 +810,13 @@ function MobileDrawer({ open, onClose, categories, active, setActive, counts }) 
             {categories.map(c => (
               <li key={c}>
                 <button onClick={() => { setActive(c); onClose(); }}
-                  className={`w-full text-left flex items-center justify-between px-3 py-2.5 rounded-md text-[14px] transition ${active===c?'bg-ink-850 text-ink-100':'text-ink-300 hover:bg-ink-850/60 hover:text-ink-100'}`}>
+                  className={`w-full text-left flex items-center justify-between px-3 py-2.5 rounded-md text-[14px] transition
+                    ${c==='Free' ? (active===c?'bg-emerald-900/30 text-emerald-300':'text-emerald-500 hover:bg-emerald-900/20 hover:text-emerald-300')
+                                 : (active===c?'bg-ink-850 text-ink-100':'text-ink-300 hover:bg-ink-850/60 hover:text-ink-100')}`}>
                   <span className="inline-flex items-center gap-2">
-                    {active===c && <span className="inline-block w-1 h-4 bg-ember rounded-full" />}{c}
+                    {active===c && <span className={`inline-block w-1 h-4 rounded-full ${c==='Free'?'bg-emerald-400':'bg-ember'}`} />}
+                    {c==='Free' && active!==c && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 opacity-80" />}
+                    {c}
                   </span>
                   <span className="font-mono text-[11px] text-ink-600">{counts[c]??0}</span>
                 </button>
@@ -874,8 +887,8 @@ function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, feature
 
       <section>
         <SectionHeader
-          kicker={query ? `Results for "${query}"` : activeCategory === 'All Shows' ? 'Latest across every show' : `Latest from ${activeCategory}`}
-          title={query ? `${videos.length} segment${videos.length!==1?'s':''}` : activeCategory === 'All Shows' ? 'Latest video' : activeCategory}
+          kicker={query ? `Results for "${query}"` : activeCategory === 'Free' ? 'Available without subscription' : activeCategory === 'All Shows' ? 'Latest across every show' : `Latest from ${activeCategory}`}
+          title={query ? `${videos.length} segment${videos.length!==1?'s':''}` : activeCategory === 'Free' ? 'Free shows today' : activeCategory === 'All Shows' ? 'Latest video' : activeCategory}
         />
         {videos.length === 0 ? (
           <div className="rounded-lg ring-1 ring-ink-800 bg-ink-900/40 p-12 text-center">
@@ -1089,6 +1102,18 @@ function App() {
 
   const VALID_CATEGORIES = new Set(CATEGORIES.filter(c => c !== 'All Shows'));
 
+  // Show "Free" tab only when premium is on and user is not approved
+  const showFreeTab = premium && !(userEmail && userStatus === 'approved');
+  const displayCategories = useMemo(() =>
+    showFreeTab ? ['All Shows', 'Free', ...CATEGORIES.slice(1)] : CATEGORIES,
+    [showFreeTab]
+  );
+
+  // Reset to "All Shows" if the Free tab disappears (user just got approved)
+  useEffect(() => {
+    if (!showFreeTab && active === 'Free') setActive('All Shows');
+  }, [showFreeTab]);
+
   // Fetch posts + premium status + user session in parallel
   useEffect(() => {
     const postsP = fetch('/api/posts?limit=100&sort=newest').then(r => r.json());
@@ -1168,17 +1193,19 @@ function App() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return videos.filter(v => {
+      if (active === 'Free') return isLocked ? !isLocked(v) : false;
       if (active !== 'All Shows' && v.category !== active) return false;
       if (!q) return true;
       return v.title.toLowerCase().includes(q) || v.description.toLowerCase().includes(q) || v.host.toLowerCase().includes(q) || v.category.toLowerCase().includes(q);
     });
-  }, [videos, query, active]);
+  }, [videos, query, active, isLocked]);
 
   const counts = useMemo(() => {
     const c = { 'All Shows': videos.length };
+    if (isLocked) c['Free'] = videos.filter(v => !isLocked(v)).length;
     for (const v of videos) c[v.category] = (c[v.category]||0)+1;
     return c;
-  }, [videos]);
+  }, [videos, isLocked]);
 
   return (
     <div className="min-h-screen text-ink-100">
@@ -1190,8 +1217,8 @@ function App() {
         onUserLogout={handleUserLogout}
         onCheckApproval={checkApproval}
       />
-      <CategoryBar categories={CATEGORIES} active={active} setActive={c => { setActive(c); setPlaying(null); }} counts={counts} />
-      <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} categories={CATEGORIES} active={active} setActive={setActive} counts={counts} />
+      <CategoryBar categories={displayCategories} active={active} setActive={c => { setActive(c); setPlaying(null); }} counts={counts} />
+      <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} categories={displayCategories} active={active} setActive={setActive} counts={counts} />
 
       {/* Auth modal */}
       {authModal && (
