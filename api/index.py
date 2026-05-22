@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect
+from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect, Response
 import json, os, traceback, re, html as _html, requests as http_req
 from functools import wraps
 from dotenv import load_dotenv
@@ -226,28 +226,36 @@ def robots_txt():
 # ── sitemap.xml ───────────────────────────────────────────────────────────────
 @app.route('/sitemap.xml')
 def sitemap_xml():
-    from datetime import timezone
     try:
         conn = get_db(); c = get_cursor(conn)
         c.execute('SELECT id, created_at FROM posts ORDER BY created_at DESC LIMIT 200')
         rows = fetchall(c); conn.close()
     except Exception:
         rows = []
-    urls = ['<?xml version="1.0" encoding="UTF-8"?>',
-            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
-    # Homepage
-    urls.append('<url><loc>https://msnow.click/</loc>'
-                '<changefreq>hourly</changefreq><priority>1.0</priority></url>')
+
+    lines = ['<?xml version="1.0" encoding="UTF-8"?>',
+             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+             '  <url>',
+             '    <loc>https://msnow.click/</loc>',
+             '    <changefreq>hourly</changefreq>',
+             '    <priority>1.0</priority>',
+             '  </url>']
     for row in rows:
-        dt = str(row.get('created_at',''))[:10]
-        urls.append(f'<url>'
-                    f'<loc>https://msnow.click/post/{row["id"]}</loc>'
-                    f'<lastmod>{dt}</lastmod>'
-                    f'<changefreq>never</changefreq>'
-                    f'<priority>0.8</priority>'
-                    f'</url>')
-    urls.append('</urlset>')
-    return app.response_class('\n'.join(urls), mimetype='application/xml')
+        raw_dt = row.get('created_at', '')
+        dt = str(raw_dt)[:10] if raw_dt else ''
+        lines += [
+            '  <url>',
+            f'    <loc>https://msnow.click/post/{row["id"]}</loc>',
+            f'    <lastmod>{dt}</lastmod>' if dt else '',
+            '    <changefreq>weekly</changefreq>',
+            '    <priority>0.8</priority>',
+            '  </url>',
+        ]
+    lines.append('</urlset>')
+    xml = '\n'.join(l for l in lines if l)
+    return Response(xml, status=200, mimetype='application/xml',
+                    headers={'Content-Type': 'application/xml; charset=utf-8',
+                             'Cache-Control': 'public, max-age=3600'})
 
 
 # ── Page routes ───────────────────────────────────────────────────────────────
