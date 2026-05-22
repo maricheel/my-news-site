@@ -77,28 +77,55 @@ def clean_categories(raw: list[str], title: str) -> list[str]:
 def already_published(wp_post_id: int, title: str) -> bool:
     """
     Return True if this WordPress post has already been published.
-    Checks two ways so it works even for older posts without wp_post_id metadata.
+    Strategy:
+      1. Search the DB by title (uses the /search endpoint — always scans all rows).
+      2. Fall back to scanning the full post list for an exact wp_post_id match.
     """
+    clean_title = html.unescape(title).strip()
+
+    # ── 1. Title search (most reliable — searches entire DB) ──────────────────
     try:
-        r = requests.get(f'{WEBSITE_URL}/api/posts?limit=30&sort=newest', timeout=15)
+        r = requests.get(
+            f'{WEBSITE_URL}/api/posts/search',
+            params={'q': clean_title[:80], 'limit': 10},
+            timeout=15,
+        )
         if r.status_code == 200:
-            posts = r.json().get('posts', [])
-
-            # 1. Check stored wp_post_id in metadata
-            for post in posts:
-                stored_id = post.get('metadata', {}).get('wp_post_id', 0)
-                if stored_id and int(stored_id) >= wp_post_id:
-                    print(f"ℹ️  Duplicate via wp_post_id: {wp_post_id} already in DB.")
-                    return True
-
-            # 2. Check by title match (covers posts published before wp_post_id tracking)
-            clean_title = html.unescape(title).strip().lower()
-            for post in posts:
-                if html.unescape(post.get('title', '')).strip().lower() == clean_title:
-                    print(f"ℹ️  Duplicate via title match: '{title}' already in DB.")
+            for post in r.json().get('posts', []):
+                stored = html.unescape(post.get('title', '')).strip()
+                if stored.lower() == clean_title.lower():
+                    print(f"ℹ️  Duplicate via title search: '{clean_title}'")
                     return True
     except Exception as e:
-        print(f"[WARN] Duplicate check failed: {e}")
+        print(f"[WARN] Title search failed: {e}")
+
+    # ── 2. Exact wp_post_id match across all stored posts ────────────────────
+    try:
+        page = 1
+        while True:
+            r = requests.get(
+                f'{WEBSITE_URL}/api/posts',
+                params={'page': page, 'limit': 100, 'sort': 'newest'},
+                timeout=15,
+            )
+            if r.status_code != 200:
+                break
+            data  = r.json()
+            posts = data.get('posts', [])
+            if not posts:
+                break
+            for post in posts:
+                stored_id = post.get('metadata', {}).get('wp_post_id')
+                if stored_id and int(stored_id) == wp_post_id:
+                    print(f"ℹ️  Duplicate via wp_post_id={wp_post_id}")
+                    return True
+            # Stop if we've seen all pages
+            if page >= data.get('pages', 1):
+                break
+            page += 1
+    except Exception as e:
+        print(f"[WARN] wp_post_id scan failed: {e}")
+
     return False
 
 
