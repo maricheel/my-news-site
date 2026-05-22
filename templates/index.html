@@ -732,10 +732,18 @@ function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [playing, setPlaying] = useState(null);
 
+  const VALID_CATEGORIES = new Set(CATEGORIES.filter(c => c !== 'All Shows'));
+
   useEffect(() => {
     fetch('/api/posts?limit=100&sort=newest')
       .then(r => r.json())
-      .then(d => { setVideos((d.posts || []).map(postToVideo)); setLoading(false); })
+      .then(d => {
+        const all = (d.posts || [])
+          .map(postToVideo)
+          .filter(v => VALID_CATEGORIES.has(v.category));
+        setVideos(all);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, []);
 

@@ -190,6 +190,12 @@ def get_wordpress_post():
 
         category_names = clean_categories(raw_categories, title)
 
+        # ── Reject posts with no recognised show category ─────────────────────
+        if not category_names or category_names[0] not in KNOWN_SHOW_NAMES:
+            print(f"⏭️  Skipping #{wp_post_id} — no recognised show category "
+                  f"(got: {category_names})")
+            return None
+
         excerpt = re.sub(r'<[^>]+>', '', post.get('excerpt', {}).get('rendered', '')).strip()
 
         print(f"✅ Found post #{wp_post_id}: {title}")
