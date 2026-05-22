@@ -20,17 +20,22 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'change-this-secret')
 API_KEY = os.getenv('API_KEY', 'change-this-key')
 
 # ── Database backend selection ──────────────────────────────────────────────
-DATABASE_URL = os.getenv('DATABASE_URL')          # set automatically by Neon/Vercel
-USE_POSTGRES  = bool(DATABASE_URL)
+_raw_db_url   = os.getenv('DATABASE_URL') or os.getenv('POSTGRES_URL') or os.getenv('POSTGRES_PRISMA_URL')
+USE_POSTGRES  = bool(_raw_db_url)
 
 if USE_POSTGRES:
     import psycopg2
     import psycopg2.extras
     PH = '%s'
+    # psycopg2 requires "postgresql://" not "postgres://"
+    DATABASE_URL = _raw_db_url.replace('postgres://', 'postgresql://', 1)
+    # Neon requires SSL — append if not already present
+    if 'sslmode' not in DATABASE_URL:
+        DATABASE_URL += ('&' if '?' in DATABASE_URL else '?') + 'sslmode=require'
 else:
     import sqlite3
     PH = '?'
-    # /tmp is the only writable directory on Vercel serverless
+    DATABASE_URL = None
     _sqlite_path = '/tmp/database.db' if os.getenv('VERCEL') else os.path.join(_base_dir, 'database.db')
 
 

@@ -1,12 +1,13 @@
 import sys
 import os
 
-# Add parent directory to path so we can import app
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import app, init_db
 
-# Initialize the database on cold start
-init_db()
+try:
+    init_db()
+except Exception as e:
+    print(f"[WARN] init_db failed: {e}")
 
-# Vercel expects a variable named `app`
+# Vercel uses the `app` variable
