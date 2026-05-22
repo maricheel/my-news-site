@@ -130,96 +130,109 @@ def already_published(wp_post_id: int, title: str) -> bool:
 
 
 # ── WordPress fetcher ─────────────────────────────────────────────────────────
-def get_wordpress_post():
-    """Fetch the latest post from WordPress with embedded image and categories."""
+def parse_wp_post(post) -> dict | None:
+    """Convert a raw WordPress post object into a publishable dict, or None to skip."""
+    wp_post_id = post['id']
+    title_raw  = post['title']['rendered']
+    title      = html.unescape(title_raw)
+
+    if already_published(wp_post_id, title):
+        return None
+
+    content = post['content']['rendered']
+
+    # Rumble embed
+    rumble_link = ''
+    m = re.search(r'https://rumble\.com/embed/([a-zA-Z0-9]+)', content)
+    if m:
+        rumble_link = f'https://rumble.com/embed/{m.group(1)}/'
+
+    # Thumbnail from embedded media
+    thumbnail_url = ''
     try:
-        print(f"📥 Fetching latest post from: {WORDPRESS_URL}")
+        media  = post['_embedded']['wp:featuredmedia'][0]
+        sizes  = media.get('media_details', {}).get('sizes', {})
+        thumbnail_url = (
+            sizes.get('medium_large', {}).get('source_url') or
+            sizes.get('large',        {}).get('source_url') or
+            sizes.get('medium',       {}).get('source_url') or
+            media.get('source_url', '')
+        )
+    except (KeyError, IndexError, TypeError):
+        pass
 
-        url = f'{WORDPRESS_URL}/wp-json/wp/v2/posts?per_page=1&order=desc&_embed'
-        response = requests.get(url, timeout=15)
+    # Category names from embedded terms
+    raw_categories = []
+    try:
+        for term in post['_embedded']['wp:term'][0]:
+            if term.get('taxonomy') == 'category':
+                raw_categories.append(html.unescape(term.get('name', '')))
+    except (KeyError, IndexError, TypeError):
+        pass
 
+    category_names = clean_categories(raw_categories, title)
+
+    # Reject posts with no recognised show category
+    if not category_names or category_names[0] not in KNOWN_SHOW_NAMES:
+        print(f"⏭️  Skipping #{wp_post_id} — no recognised show "
+              f"(got: {category_names}) | {title[:60]}")
+        return None
+
+    excerpt = re.sub(r'<[^>]+>', '', post.get('excerpt', {}).get('rendered', '')).strip()
+
+    print(f"✅ New post #{wp_post_id}: {title}")
+    print(f"   Categories: {category_names} | Thumbnail: {'yes' if thumbnail_url else 'none'}")
+
+    return {
+        'wp_post_id':        wp_post_id,
+        'title':             title,
+        'content':           content,
+        'rumble_link':       rumble_link,
+        'thumbnail_url':     thumbnail_url,
+        'categories':        category_names,
+        'featured_image_id': post.get('featured_media', 0),
+        'metadata': {
+            'wp_post_id':            wp_post_id,
+            'rank_math_description': excerpt,
+            'focus_keyword':         category_names[0] if category_names else 'news',
+        },
+    }
+
+
+def get_wordpress_posts(per_page: int = 20) -> list[dict]:
+    """
+    Fetch the latest `per_page` posts from WordPress and return all that
+    haven't been published yet (oldest-first so the feed stays in order).
+    """
+    print(f"📥 Fetching up to {per_page} latest posts from: {WORDPRESS_URL}")
+    try:
+        url = (f'{WORDPRESS_URL}/wp-json/wp/v2/posts'
+               f'?per_page={per_page}&order=desc&_embed')
+        response = requests.get(url, timeout=20)
         if response.status_code != 200:
-            print(f"❌ Failed to fetch from WordPress: {response.status_code}")
-            return None
+            print(f"❌ WordPress returned {response.status_code}")
+            return []
 
-        posts = response.json()
-        if not posts:
-            print("ℹ️ No posts found")
-            return None
+        raw_posts = response.json()
+        if not raw_posts:
+            print("ℹ️  No posts on WordPress yet.")
+            return []
 
-        post = posts[0]
-        wp_post_id = post['id']
+        print(f"   WordPress returned {len(raw_posts)} posts — checking each…")
+        to_publish = []
+        for raw in raw_posts:
+            parsed = parse_wp_post(raw)
+            if parsed:
+                to_publish.append(parsed)
 
-        # Title and content (fetch early so we can do duplicate check by title)
-        title_raw = post['title']['rendered']
-        if already_published(wp_post_id, html.unescape(title_raw)):
-            return None
-
-        # Decode HTML entities in title (e.g. &#8211; → –)
-        title   = html.unescape(title_raw)
-        content = post['content']['rendered']
-
-        # Rumble embed
-        rumble_link = ''
-        m = re.search(r'https://rumble\.com/embed/([a-zA-Z0-9]+)', content)
-        if m:
-            rumble_link = f'https://rumble.com/embed/{m.group(1)}/'
-
-        # Thumbnail from embedded media
-        thumbnail_url = ''
-        try:
-            media  = post['_embedded']['wp:featuredmedia'][0]
-            sizes  = media.get('media_details', {}).get('sizes', {})
-            thumbnail_url = (
-                sizes.get('medium_large', {}).get('source_url') or
-                sizes.get('large',        {}).get('source_url') or
-                sizes.get('medium',       {}).get('source_url') or
-                media.get('source_url', '')
-            )
-        except (KeyError, IndexError, TypeError):
-            pass
-
-        # Category names from embedded terms
-        raw_categories = []
-        try:
-            for term in post['_embedded']['wp:term'][0]:
-                if term.get('taxonomy') == 'category':
-                    raw_categories.append(html.unescape(term.get('name', '')))
-        except (KeyError, IndexError, TypeError):
-            pass
-
-        category_names = clean_categories(raw_categories, title)
-
-        # ── Reject posts with no recognised show category ─────────────────────
-        if not category_names or category_names[0] not in KNOWN_SHOW_NAMES:
-            print(f"⏭️  Skipping #{wp_post_id} — no recognised show category "
-                  f"(got: {category_names})")
-            return None
-
-        excerpt = re.sub(r'<[^>]+>', '', post.get('excerpt', {}).get('rendered', '')).strip()
-
-        print(f"✅ Found post #{wp_post_id}: {title}")
-        print(f"   Categories: {category_names}")
-        print(f"   Thumbnail:  {'yes' if thumbnail_url else 'none'}")
-
-        return {
-            'wp_post_id':       wp_post_id,
-            'title':            title,
-            'content':          content,
-            'rumble_link':      rumble_link,
-            'thumbnail_url':    thumbnail_url,
-            'categories':       category_names,
-            'featured_image_id': post.get('featured_media', 0),
-            'metadata': {
-                'wp_post_id':             wp_post_id,   # stored for duplicate detection
-                'rank_math_description':  excerpt,
-                'focus_keyword':          category_names[0] if category_names else 'news',
-            },
-        }
+        # Publish oldest first so the timeline is correct
+        to_publish.reverse()
+        print(f"\n📋 {len(to_publish)} new post(s) to publish.\n")
+        return to_publish
 
     except Exception as e:
         print(f"❌ ERROR fetching WordPress: {e}")
-        return None
+        return []
 
 
 # ── Publisher ─────────────────────────────────────────────────────────────────
@@ -255,13 +268,24 @@ def main():
     print(f"⏰ [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Automation running")
     print("="*50 + "\n")
 
-    post_data = get_wordpress_post()
-    if not post_data:
-        return False
+    posts = get_wordpress_posts(per_page=20)
+    if not posts:
+        print("ℹ️  Nothing new to publish.\n")
+        return True
 
-    success = send_post_to_website(post_data)
-    print("\n✅ Done!\n" if success else "\n❌ Failed. Check URL and API key.\n")
-    return success
+    published = 0
+    failed    = 0
+    for post_data in posts:
+        ok = send_post_to_website(post_data)
+        if ok:
+            published += 1
+        else:
+            failed += 1
+
+    print(f"\n{'='*50}")
+    print(f"✅ Published: {published}  |  ❌ Failed: {failed}")
+    print(f"{'='*50}\n")
+    return failed == 0
 
 
 if __name__ == '__main__':
