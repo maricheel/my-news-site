@@ -20,58 +20,66 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'change-this-secret')
 API_KEY = os.getenv('API_KEY', 'change-this-key')
 
 # ── Database backend selection ──────────────────────────────────────────────
-_raw_db_url   = os.getenv('DATABASE_URL') or os.getenv('POSTGRES_URL') or os.getenv('POSTGRES_PRISMA_URL')
-USE_POSTGRES  = bool(_raw_db_url)
+_raw_db_url  = (os.getenv('DATABASE_URL') or os.getenv('POSTGRES_URL')
+                or os.getenv('POSTGRES_PRISMA_URL') or os.getenv('POSTGRES_URL_NON_POOLING'))
+USE_POSTGRES = bool(_raw_db_url)
 
 if USE_POSTGRES:
-    import psycopg2
-    import psycopg2.extras
+    import pg8000.dbapi
+    from urllib.parse import urlparse as _urlparse
     PH = '%s'
-    # psycopg2 requires "postgresql://" not "postgres://"
-    DATABASE_URL = _raw_db_url.replace('postgres://', 'postgresql://', 1)
-    # Neon requires SSL — append if not already present
-    if 'sslmode' not in DATABASE_URL:
-        DATABASE_URL += ('&' if '?' in DATABASE_URL else '?') + 'sslmode=require'
+
+    def _parse_db_url(raw):
+        # strip sslmode from URL — pg8000 uses ssl_context=True instead
+        u = _urlparse(raw)
+        return {
+            'host':     u.hostname,
+            'port':     u.port or 5432,
+            'user':     u.username,
+            'password': u.password,
+            'database': u.path.lstrip('/').split('?')[0],
+            'ssl_context': True,   # required for Neon
+        }
+
+    _db_params = _parse_db_url(_raw_db_url)
+
 else:
     import sqlite3
     PH = '?'
-    DATABASE_URL = None
     _sqlite_path = '/tmp/database.db' if os.getenv('VERCEL') else os.path.join(_base_dir, 'database.db')
 
 
 def get_db():
     if USE_POSTGRES:
-        conn = psycopg2.connect(DATABASE_URL)
-        return conn
+        return pg8000.dbapi.connect(**_db_params)
     else:
         conn = sqlite3.connect(_sqlite_path)
         conn.row_factory = sqlite3.Row
         return conn
 
 
+def get_cursor(conn):
+    return conn.cursor()
+
+
 def fetchall(cursor):
-    """Return rows as list of dicts regardless of backend."""
     if USE_POSTGRES:
-        return cursor.fetchall()   # RealDictCursor already returns dicts
+        cols = [d[0] for d in cursor.description]
+        return [dict(zip(cols, row)) for row in cursor.fetchall()]
     else:
-        rows = cursor.fetchall()
-        return [dict(r) for r in rows]
+        return [dict(r) for r in cursor.fetchall()]
 
 
 def fetchone(cursor):
-    """Return one row as dict regardless of backend."""
     if USE_POSTGRES:
-        return cursor.fetchone()
+        if not cursor.description:
+            return None
+        cols = [d[0] for d in cursor.description]
+        row  = cursor.fetchone()
+        return dict(zip(cols, row)) if row else None
     else:
         row = cursor.fetchone()
         return dict(row) if row else None
-
-
-def get_cursor(conn):
-    if USE_POSTGRES:
-        return conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    else:
-        return conn.cursor()
 
 
 # ── Schema ──────────────────────────────────────────────────────────────────
