@@ -736,12 +736,31 @@ def run_cron():
                 if p is None:
                     skipped += 1
                     continue
-                _cron_insert_post(conn, p)
+                new_id = _cron_insert_post(conn, p)
                 conn.commit()
                 # Add to sets so next post in same run won't duplicate
                 existing_wp_ids.add(raw['id'])
                 existing_titles.add(p['title'].lower())
                 published += 1
+                # ── Ping Google to index the new post immediately ──────────
+                try:
+                    post_url = f'https://msnow.click/post/{new_id}'
+                    # 1. IndexNow (Bing + others — instant)
+                    http_req.post('https://api.indexnow.org/indexnow', json={
+                        'host': 'msnow.click',
+                        'key': os.getenv('INDEXNOW_KEY', 'msnow'),
+                        'keyLocation': f'https://msnow.click/static/{os.getenv("INDEXNOW_KEY","msnow")}.txt',
+                        'urlList': [post_url]
+                    }, timeout=5)
+                    # 2. Google sitemap ping (signals new content)
+                    http_req.get(
+                        'https://www.google.com/ping',
+                        params={'sitemap': 'https://msnow.click/sitemap.xml'},
+                        timeout=5
+                    )
+                    print(f'[CRON] Pinged Google + IndexNow for {post_url}')
+                except Exception as ping_err:
+                    print(f'[CRON] Ping failed (non-critical): {ping_err}')
             except Exception as e:
                 err = f'Post #{raw.get("id","?")} failed: {str(e)}'
                 print(f'[CRON] {err}')
