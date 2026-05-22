@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Post — NEWSGRID{% endblock %}
+{% block title %}Post — msnow.click{% endblock %}
 
 {% block content %}
 <div id="post-wrap" class="max-w-[900px] mx-auto">
@@ -28,7 +28,7 @@
     if (!res.ok) throw new Error('not found');
     const post = await res.json();
 
-    document.title = post.title + ' — NEWSGRID';
+    document.title = post.title + ' — msnow.click';
 
     const show = post.categories?.[0] || '';
     const hosts = {
