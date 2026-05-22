@@ -583,25 +583,48 @@ def _cron_clean_cats(raw, title):
         return [show]
     return good if good else ([show] if show else [])
 
-def _cron_wp_id_exists(conn, wp_id):
-    """Return True if a post with this WordPress ID is already in the DB."""
+def _cron_load_existing_ids(conn):
+    """
+    Load ALL known WordPress post IDs from the DB into a Python set.
+    One query up-front — avoids per-post queries and silent JSONB failures.
+    Also loads titles for posts that may have been added before wp_post_id tracking.
+    """
+    existing_wp_ids = set()
+    existing_titles = set()
     c = get_cursor(conn)
     try:
         if USE_POSTGRES:
-            c.execute("SELECT id FROM posts WHERE metadata::jsonb->>'wp_post_id' = %s LIMIT 1", (str(wp_id),))
+            c.execute("SELECT metadata, title FROM posts WHERE metadata IS NOT NULL AND metadata != ''")
         else:
-            c.execute("SELECT id FROM posts WHERE json_extract(metadata,'$.wp_post_id') = ? LIMIT 1", (str(wp_id),))
-        return fetchone(c) is not None
-    except Exception:
-        return False
+            c.execute("SELECT metadata, title FROM posts WHERE metadata IS NOT NULL AND metadata != ''")
+        for row in fetchall(c):
+            existing_titles.add((row.get('title') or '').strip().lower())
+            try:
+                m = json.loads(row.get('metadata') or '{}')
+                wp_id = m.get('wp_post_id')
+                if wp_id is not None:
+                    existing_wp_ids.add(int(wp_id))
+            except Exception:
+                pass
+    except Exception as e:
+        print(f'[CRON] Warning loading existing IDs: {e}')
+    return existing_wp_ids, existing_titles
 
-def _cron_parse_wp_post(raw, conn):
+def _cron_parse_wp_post(raw, existing_wp_ids, existing_titles):
     """Parse one WP post dict. Returns insert-ready dict or None if skip."""
     wp_id = raw['id']
-    if _cron_wp_id_exists(conn, wp_id):
+
+    # Skip if already in DB by WP post ID
+    if wp_id in existing_wp_ids:
         return None
 
     title = _html.unescape(raw['title']['rendered']).strip()
+
+    # Skip if already in DB by title (safety net for legacy posts without wp_post_id)
+    if title.lower() in existing_titles:
+        print(f'[CRON] Skip #{wp_id} — title already exists: {title[:60]}')
+        return None
+
     content = raw['content']['rendered']
 
     # Rumble embed
@@ -700,17 +723,24 @@ def run_cron():
     except Exception as e:
         return jsonify({'error': f'DB connection failed: {str(e)}'}), 500
 
+    # Load ALL existing WP IDs + titles in ONE query — no per-post DB calls
+    existing_wp_ids, existing_titles = _cron_load_existing_ids(conn)
+    print(f'[CRON] DB has {len(existing_wp_ids)} tracked WP IDs, {len(existing_titles)} titles')
+
     published = 0; skipped = 0; failed = 0
     errors = []
     try:
         for raw in raw_posts:
             try:
-                p = _cron_parse_wp_post(raw, conn)
+                p = _cron_parse_wp_post(raw, existing_wp_ids, existing_titles)
                 if p is None:
                     skipped += 1
                     continue
                 _cron_insert_post(conn, p)
                 conn.commit()
+                # Add to sets so next post in same run won't duplicate
+                existing_wp_ids.add(raw['id'])
+                existing_titles.add(p['title'].lower())
                 published += 1
             except Exception as e:
                 err = f'Post #{raw.get("id","?")} failed: {str(e)}'
