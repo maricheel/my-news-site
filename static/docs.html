@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>msnow.click — Maintenance Guide</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #161b27;
+    --surface2: #1e2535;
+    --border: #2a3347;
+    --text: #e8eaf0;
+    --muted: #7a8499;
+    --accent: #4f8ef7;
+    --accent2: #f7924f;
+    --green: #3ecf8e;
+    --red: #f76f6f;
+    --yellow: #f7c94f;
+    --code-bg: #0d1117;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ── Layout ── */
+  .shell { display: flex; min-height: 100vh; }
+
+  /* ── Sidebar ── */
+  nav {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: 260px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 24px 0 40px;
+    z-index: 100;
+  }
+  nav .logo {
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 20px 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  nav .logo-icon {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px; color: #fff;
+    flex-shrink: 0;
+  }
+  nav .logo-text { font-size: 14px; font-weight: 600; line-height: 1.3; }
+  nav .logo-sub { font-size: 11px; color: var(--muted); }
+  nav ul { list-style: none; }
+  nav ul li a {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 20px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    border-left: 3px solid transparent;
+    transition: all .15s;
+  }
+  nav ul li a:hover, nav ul li a.active {
+    color: var(--text);
+    background: var(--surface2);
+    border-left-color: var(--accent);
+  }
+  nav ul li a .nav-num {
+    font-size: 10px; font-weight: 700;
+    background: var(--surface2);
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: var(--muted);
+    min-width: 20px; text-align: center;
+  }
+  nav ul li a:hover .nav-num { background: var(--border); }
+
+  /* ── Main content ── */
+  main {
+    margin-left: 260px;
+    flex: 1;
+    max-width: 900px;
+    padding: 48px 48px 96px;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #1a2540 0%, #0f1117 60%);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px 44px;
+    margin-bottom: 56px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+  .hero h1 { font-size: 28px; font-weight: 700; letter-spacing: -.5px; margin-bottom: 8px; }
+  .hero p { color: var(--muted); font-size: 15px; max-width: 560px; }
+  .hero .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 20px;
+    font-size: 12px; font-weight: 500;
+    border: 1px solid;
+  }
+  .badge-blue  { background: rgba(79,142,247,.12); border-color: rgba(79,142,247,.3); color: var(--accent); }
+  .badge-green { background: rgba(62,207,142,.12); border-color: rgba(62,207,142,.3); color: var(--green); }
+  .badge-orange{ background: rgba(247,146,79,.12);  border-color: rgba(247,146,79,.3);  color: var(--accent2); }
+
+  /* ── Sections ── */
+  section { margin-bottom: 64px; scroll-margin-top: 32px; }
+  section h2 {
+    font-size: 20px; font-weight: 700;
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  section h2 .sec-num {
+    background: var(--accent);
+    color: #fff;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  h3 {
+    font-size: 15px; font-weight: 600;
+    color: var(--text);
+    margin: 24px 0 10px;
+  }
+  p { color: #c5cad8; margin-bottom: 12px; }
+  strong { color: var(--text); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 14px;
+  }
+  .card-row { display: flex; align-items: flex-start; gap: 14px; }
+  .card-icon {
+    width: 36px; height: 36px; flex-shrink: 0;
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .card-icon.blue   { background: rgba(79,142,247,.15); }
+  .card-icon.green  { background: rgba(62,207,142,.15); }
+  .card-icon.orange { background: rgba(247,146,79,.15); }
+  .card-icon.red    { background: rgba(247,111,111,.15); }
+  .card-body h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .card-body p  { font-size: 13px; color: var(--muted); margin: 0; }
+
+  /* ── Tables ── */
+  .tbl-wrap { overflow-x: auto; margin-bottom: 16px; border-radius: 10px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead th {
+    background: var(--surface2);
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    padding: 10px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    color: #c5cad8;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--surface2); }
+  td code, th code { font-size: 12px; }
+
+  /* ── Code ── */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    margin: 12px 0 18px;
+    position: relative;
+  }
+  pre code {
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    color: #c9d1d9;
+    line-height: 1.65;
+  }
+  code {
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 12.5px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: #e8b56e;
+  }
+  pre code { background: none; border: none; padding: 0; color: #c9d1d9; font-size: 13px; }
+
+  /* ── Alerts ── */
+  .alert {
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 13.5px;
+    display: flex; gap: 10px; align-items: flex-start;
+    border: 1px solid;
+  }
+  .alert-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .alert.info    { background: rgba(79,142,247,.08);  border-color: rgba(79,142,247,.25);  color: #9bbffd; }
+  .alert.warn    { background: rgba(247,201,79,.08);  border-color: rgba(247,201,79,.25);  color: #f0ca6b; }
+  .alert.success { background: rgba(62,207,142,.08);  border-color: rgba(62,207,142,.25);  color: #5ddba5; }
+  .alert.danger  { background: rgba(247,111,111,.08); border-color: rgba(247,111,111,.25); color: #f79898; }
+
+  /* ── Steps ── */
+  .steps { counter-reset: step; display: flex; flex-direction: column; gap: 14px; }
+  .step {
+    display: flex; gap: 16px; align-items: flex-start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .step-num {
+    width: 28px; height: 28px; flex-shrink: 0;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+  }
+  .step-body h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .step-body p  { font-size: 13px; color: var(--muted); margin: 0; }
+  .step-body code { font-size: 12px; }
+
+  /* ── Status chips ── */
+  .chip {
+    display: inline-block;
+    padding: 2px 9px; border-radius: 12px;
+    font-size: 11px; font-weight: 600;
+  }
+  .chip-green  { background: rgba(62,207,142,.15);  color: var(--green); }
+  .chip-yellow { background: rgba(247,201,79,.15);  color: var(--yellow); }
+  .chip-red    { background: rgba(247,111,111,.15); color: var(--red); }
+  .chip-blue   { background: rgba(79,142,247,.15);  color: var(--accent); }
+  .chip-muted  { background: var(--surface2); color: var(--muted); }
+
+  /* ── Endpoint list ── */
+  .endpoint {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 9px 14px;
+    border-radius: 7px;
+    margin-bottom: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-size: 13px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .method {
+    font-family: monospace;
+    font-size: 11px; font-weight: 700;
+    padding: 2px 7px; border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .method-get    { background: rgba(62,207,142,.15); color: var(--green); }
+  .method-post   { background: rgba(79,142,247,.15); color: var(--accent); }
+  .method-delete { background: rgba(247,111,111,.15); color: var(--red); }
+  .endpoint-path { font-family: monospace; color: #e8b56e; font-size: 13px; }
+  .endpoint-desc { color: var(--muted); font-size: 12.5px; }
+
+  /* ── File tree ── */
+  .file-tree {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 24px;
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 2;
+  }
+  .ft-dir  { color: var(--accent); font-weight: 600; }
+  .ft-file { color: #c9d1d9; }
+  .ft-comment { color: var(--muted); font-size: 12px; }
+  .ft-important { color: var(--accent2); font-weight: 600; }
+
+  /* ── Problem cards ── */
+  .problem {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .problem-q {
+    background: var(--surface2);
+    padding: 12px 18px;
+    font-size: 14px; font-weight: 600;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .problem-a { padding: 14px 18px; font-size: 13.5px; color: #c5cad8; }
+  .problem-a ul { padding-left: 20px; }
+  .problem-a li { margin-bottom: 6px; }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    nav { width: 220px; }
+    main { margin-left: 220px; padding: 32px 24px 80px; }
+  }
+  @media (max-width: 640px) {
+    nav { display: none; }
+    main { margin-left: 0; padding: 24px 16px 80px; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+<nav>
+  <div class="logo">
+    <div class="logo-icon">MS</div>
+    <div>
+      <div class="logo-text">msnow.click</div>
+      <div class="logo-sub">Maintenance Guide</div>
+    </div>
+  </div>
+  <ul>
+    <li><a href="#overview"><span class="nav-num">1</span> Overview</a></li>
+    <li><a href="#stack"><span class="nav-num">2</span> Tech Stack</a></li>
+    <li><a href="#files"><span class="nav-num">3</span> File Structure</a></li>
+    <li><a href="#env"><span class="nav-num">4</span> Environment Variables</a></li>
+    <li><a href="#local"><span class="nav-num">5</span> Run Locally</a></li>
+    <li><a href="#deploy"><span class="nav-num">6</span> Deployment</a></li>
+    <li><a href="#database"><span class="nav-num">7</span> Database</a></li>
+    <li><a href="#api"><span class="nav-num">8</span> API Endpoints</a></li>
+    <li><a href="#automation"><span class="nav-num">9</span> Automation</a></li>
+    <li><a href="#admin"><span class="nav-num">10</span> Admin Panel</a></li>
+    <li><a href="#premium"><span class="nav-num">11</span> Premium System</a></li>
+    <li><a href="#users"><span class="nav-num">12</span> User Flow</a></li>
+    <li><a href="#pwa"><span class="nav-num">13</span> PWA / Android</a></li>
+    <li><a href="#problems"><span class="nav-num">14</span> Troubleshooting</a></li>
+    <li><a href="#newshow"><span class="nav-num">15</span> Add a New Show</a></li>
+    <li><a href="#credentials"><span class="nav-num">16</span> Credentials</a></li>
+  </ul>
+</nav>
+
+<!-- ── Main ─────────────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1>msnow.click — Maintenance Guide</h1>
+    <p>Everything you need to run, fix, and extend this website — even if you've never seen it before.</p>
+    <div class="badges">
+      <span class="badge badge-blue">🐍 Python 3.11</span>
+      <span class="badge badge-blue">⚛️ React 18</span>
+      <span class="badge badge-green">▲ Vercel</span>
+      <span class="badge badge-green">🐘 PostgreSQL</span>
+      <span class="badge badge-orange">📰 topnewsshow.com</span>
+    </div>
+  </div>
+
+  <!-- 1. Overview -->
+  <section id="overview">
+    <h2><span class="sec-num">1</span> What this website is</h2>
+    <p><strong>msnow.click</strong> is a news video archive site. It shows daily political TV shows (Morning Joe, Rachel Maddow, Chris Hayes, etc.) as video cards. Videos are automatically pulled from a WordPress site (<a href="https://topnewsshow.com" target="_blank">topnewsshow.com</a>) that embeds Rumble video players.</p>
+
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-top:16px;">
+      <div class="card">
+        <div class="card-row">
+          <div class="card-icon blue">🆓</div>
+          <div class="card-body">
+            <h4>Free users</h4>
+            <p>Watch ~20% of daily shows (stable all day, changes at midnight)</p>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-row">
+          <div class="card-icon orange">💳</div>
+          <div class="card-body">
+            <h4>Premium users</h4>
+            <p>Pay $9.99/month — admin approves after payment via WhatsApp or email</p>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-row">
+          <div class="card-icon green">🤖</div>
+          <div class="card-body">
+            <h4>Automation</h4>
+            <p>WordPress posts sync to the site every 10 minutes via cron-job.org</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Tech Stack -->
+  <section id="stack">
+    <h2><span class="sec-num">2</span> Tech Stack</h2>
+    <div class="alert info">
+      <span class="alert-icon">💡</span>
+      <span><strong>No build step.</strong> React JSX is transpiled in the browser by Babel CDN. The entire frontend is one <code>index.html</code> file with inline JavaScript. Just edit and push.</span>
+    </div>
+    <div class="tbl-wrap" style="margin-top:16px;">
+      <table>
+        <thead><tr><th>Layer</th><th>Technology</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Backend</td><td>Python 3.11 · Flask 2.3.3</td><td>Single file: <code>api/index.py</code></td></tr>
+          <tr><td>Hosting</td><td>Vercel (serverless)</td><td>Auto-deploy on every git push</td></tr>
+          <tr><td>Database</td><td>Neon PostgreSQL</td><td>SQLite for local dev (auto-detected)</td></tr>
+          <tr><td>DB driver</td><td>pg8000</td><td>Pure Python — required by Vercel (no C extensions)</td></tr>
+          <tr><td>Frontend</td><td>React 18 SPA · Babel standalone</td><td>CDN only, no npm, no webpack</td></tr>
+          <tr><td>CSS</td><td>Tailwind CSS (CDN)</td><td>Dark + light mode via <code>html.light</code> class</td></tr>
+          <tr><td>Video</td><td>Rumble embed iframes</td><td>Extracted from WordPress content</td></tr>
+          <tr><td>PWA</td><td>Web App Manifest + Service Worker</td><td>Installable on Android as app</td></tr>
+          <tr><td>Automation</td><td>Python script + cron-job.org</td><td>Every 10 min, no GitHub Actions needed</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 3. File Structure -->
+  <section id="files">
+    <h2><span class="sec-num">3</span> File Structure</h2>
+    <div class="file-tree">
+      <div><span class="ft-dir">plan/</span></div>
+      <div>&nbsp;&nbsp;<span class="ft-dir">api/</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-important">index.py</span>&nbsp;&nbsp;<span class="ft-comment">← ENTIRE backend (all routes, DB logic, cron, auth)</span></div>
+      <div>&nbsp;&nbsp;<span class="ft-dir">templates/</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-important">index.html</span>&nbsp;&nbsp;<span class="ft-comment">← ENTIRE frontend (React SPA, 1300+ lines)</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-important">admin.html</span>&nbsp;&nbsp;<span class="ft-comment">← Admin dashboard (Vanilla JS)</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">login.html</span>&nbsp;&nbsp;<span class="ft-comment">← Admin Google login page</span></div>
+      <div>&nbsp;&nbsp;<span class="ft-dir">static/</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-dir">images/</span>&nbsp;&nbsp;<span class="ft-comment">← favicon.png, logo.png</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">manifest.json</span>&nbsp;&nbsp;<span class="ft-comment">← PWA manifest (app name, icons, colors)</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">sw.js</span>&nbsp;&nbsp;<span class="ft-comment">← Service Worker (offline caching)</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">docs.html</span>&nbsp;&nbsp;<span class="ft-comment">← This documentation page</span></div>
+      <div>&nbsp;&nbsp;<span class="ft-dir">auto/</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">automate_simple.py</span>&nbsp;&nbsp;<span class="ft-comment">← WordPress → site sync script (for manual runs)</span></div>
+      <div>&nbsp;&nbsp;<span class="ft-file">vercel.json</span>&nbsp;&nbsp;<span class="ft-comment">← Vercel config (routes everything to api/index.py)</span></div>
+      <div>&nbsp;&nbsp;<span class="ft-file">requirements.txt</span>&nbsp;&nbsp;<span class="ft-comment">← Flask, pg8000, requests, Werkzeug, python-dotenv</span></div>
+      <div>&nbsp;&nbsp;<span class="ft-file">.env</span>&nbsp;&nbsp;<span class="ft-comment">← Local dev secrets — NEVER commit this file</span></div>
+      <div>&nbsp;&nbsp;<span class="ft-file">MAINTENANCE.md</span>&nbsp;&nbsp;<span class="ft-comment">← This guide in markdown format</span></div>
+    </div>
+    <div class="alert warn" style="margin-top:14px;">
+      <span class="alert-icon">⚠️</span>
+      <span>The two most important files are <code>api/index.py</code> (backend) and <code>templates/index.html</code> (frontend). 90% of all changes happen in these two files.</span>
+    </div>
+  </section>
+
+  <!-- 4. Environment Variables -->
+  <section id="env">
+    <h2><span class="sec-num">4</span> Environment Variables</h2>
+    <p>Set these in <strong>Vercel → Project → Settings → Environment Variables</strong>.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Variable</th><th>Required</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>SECRET_KEY</code></td><td><span class="chip chip-red">Required</span></td><td>Flask session signing key. Use a long random string (e.g. 50 random chars).</td></tr>
+          <tr><td><code>API_KEY</code></td><td><span class="chip chip-red">Required</span></td><td>Bearer token for the automation cron endpoint. Also used by cron-job.org.</td></tr>
+          <tr><td><code>DATABASE_URL</code></td><td><span class="chip chip-red">Required</span></td><td>Neon PostgreSQL connection string — starts with <code>postgresql://</code></td></tr>
+          <tr><td><code>GOOGLE_CLIENT_ID</code></td><td><span class="chip chip-red">Required</span></td><td>Google OAuth client ID for admin login (get from Google Cloud Console)</td></tr>
+          <tr><td><code>WORDPRESS_URL</code></td><td><span class="chip chip-muted">Optional</span></td><td>WordPress source URL. Default: <code>https://topnewsshow.com</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>Local .env file</h3>
+    <pre><code>SECRET_KEY=any-random-string-here
+API_KEY=your-secret-key-here
+DATABASE_URL=postgresql://user:pass@host/dbname
+GOOGLE_CLIENT_ID=xxxxxx.apps.googleusercontent.com
+WORDPRESS_URL=https://topnewsshow.com</code></pre>
+  </section>
+
+  <!-- 5. Run Locally -->
+  <section id="local">
+    <h2><span class="sec-num">5</span> How to Run Locally</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Clone the repository</h4>
+          <pre style="margin-top:8px;"><code>git clone https://github.com/maricheel/my-news-site.git
+cd my-news-site</code></pre>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Create and activate a virtual environment</h4>
+          <pre style="margin-top:8px;"><code>python -m venv venv
+venv\Scripts\activate        # Windows
+source venv/bin/activate     # Mac / Linux</code></pre>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Install dependencies</h4>
+          <pre style="margin-top:8px;"><code>pip install -r requirements.txt</code></pre>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Create <code>.env</code> file (see section 4)</h4>
+          <p>Copy the template above and fill in your values.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h4>Run the server</h4>
+          <pre style="margin-top:8px;"><code>python api/index.py</code></pre>
+          <p style="margin-top:6px;">Open <a href="http://127.0.0.1:5000" target="_blank">http://127.0.0.1:5000</a> in your browser.</p>
+        </div>
+      </div>
+    </div>
+    <div class="alert info" style="margin-top:16px;">
+      <span class="alert-icon">🗄️</span>
+      <span>Locally it uses <strong>SQLite</strong> (auto-created as <code>database.db</code>). On Vercel it uses <strong>PostgreSQL</strong> from the <code>DATABASE_URL</code> env var. The code detects this automatically.</span>
+    </div>
+  </section>
+
+  <!-- 6. Deployment -->
+  <section id="deploy">
+    <h2><span class="sec-num">6</span> How Deployment Works</h2>
+    <div class="alert success">
+      <span class="alert-icon">✅</span>
+      <span>Every <code>git push</code> to the <code>main</code> branch <strong>automatically deploys</strong> to <a href="https://msnow.click" target="_blank">https://msnow.click</a> in ~60–90 seconds.</span>
+    </div>
+    <h3>How Vercel routes work</h3>
+    <p>The <code>vercel.json</code> sends <strong>all routes</strong> to <code>api/index.py</code>. Flask handles everything — pages, API, static files.</p>
+    <pre><code>{
+  "builds": [{ "src": "api/index.py", "use": "@vercel/python" }],
+  "routes": [{ "src": "/(.*)", "dest": "api/index.py" }]
+}</code></pre>
+    <h3>Checking deployment status</h3>
+    <p>Go to <a href="https://vercel.com" target="_blank">vercel.com</a> → your project → <strong>Deployments tab</strong>.</p>
+    <h3>Checking function error logs</h3>
+    <p>Vercel dashboard → <strong>Functions tab</strong> → click any invocation to see the full Python traceback.</p>
+  </section>
+
+  <!-- 7. Database -->
+  <section id="database">
+    <h2><span class="sec-num">7</span> Database</h2>
+    <p>Production uses <strong>Neon PostgreSQL</strong> (free tier). Access via <a href="https://neon.tech" target="_blank">neon.tech</a> → your project → connection string.</p>
+
+    <h3>Table: <code>posts</code> — video content</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Column</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>SERIAL</td><td>Auto-increment primary key</td></tr>
+          <tr><td><code>title</code></td><td>TEXT</td><td>Show title (e.g. "Morning Joe – 5/21/26")</td></tr>
+          <tr><td><code>content</code></td><td>TEXT</td><td>Full HTML content from WordPress</td></tr>
+          <tr><td><code>rumble_link</code></td><td>TEXT</td><td>Rumble embed URL (e.g. <code>https://rumble.com/embed/abc123/</code>)</td></tr>
+          <tr><td><code>thumbnail_url</code></td><td>TEXT</td><td>Image URL from WordPress featured media</td></tr>
+          <tr><td><code>categories</code></td><td>TEXT</td><td>JSON array — e.g. <code>["Morning Joe"]</code></td></tr>
+          <tr><td><code>metadata</code></td><td>TEXT</td><td>JSON object — always contains <code>wp_post_id</code></td></tr>
+          <tr><td><code>source</code></td><td>TEXT</td><td>Always <code>"automation"</code></td></tr>
+          <tr><td><code>created_at</code></td><td>TIMESTAMP</td><td>When the post was added to our DB</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Table: <code>settings</code> — key/value config</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Key</th><th>Value</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>premium_mode</code></td><td><code>"true"</code> / <code>"false"</code></td><td>Whether premium mode is active site-wide</td></tr>
+          <tr><td><code>admin_whatsapp</code></td><td>phone number</td><td>Admin WhatsApp number for invoice request button</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Table: <code>users</code> — registered users</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Column</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>SERIAL</td><td>Auto-increment</td></tr>
+          <tr><td><code>email</code></td><td>TEXT UNIQUE</td><td>User email address</td></tr>
+          <tr><td><code>password_hash</code></td><td>TEXT</td><td>Werkzeug hashed password (never edit manually)</td></tr>
+          <tr><td><code>password_plain</code></td><td>TEXT</td><td>Plain text — visible only in admin panel for support</td></tr>
+          <tr><td><code>status</code></td><td>TEXT</td><td><span class="chip chip-yellow">pending</span> <span class="chip chip-green">approved</span> <span class="chip chip-red">rejected</span></td></tr>
+          <tr><td><code>created_at</code></td><td>TIMESTAMP</td><td>Registration date</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="alert warn">
+      <span class="alert-icon">⚠️</span>
+      <span>When adding new columns in Postgres, always use <code>ALTER TABLE ... ADD COLUMN IF NOT EXISTS</code>. Using plain <code>ALTER TABLE</code> when the column already exists will abort the entire transaction and break the DB connection.</span>
+    </div>
+  </section>
+
+  <!-- 8. API Endpoints -->
+  <section id="api">
+    <h2><span class="sec-num">8</span> All API Endpoints</h2>
+
+    <h3>Public — no auth required</h3>
+    <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/api/posts</span><span class="endpoint-desc">List posts. Params: <code>page</code>, <code>limit</code>, <code>category</code>, <code>sort</code>, <code>search</code></span></div>
+    <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/api/posts/&lt;id&gt;</span><span class="endpoint-desc">Single post by ID</span></div>
+    <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/api/posts/search?q=...</span><span class="endpoint-desc">Full-text search in title + content</span></div>
+    <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/api/settings/premium</span><span class="endpoint-desc">Returns <code>{"premium": true/false}</code></span></div>
+    <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/api/settings/contact</span><span class="endpoint-desc">Returns admin WhatsApp number + email</span></div>
+    <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/api/stats</span><span class="endpoint-desc">Total post count, breakdown by source, last post date</span></div>
+    <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/api/auth/register</span><span class="endpoint-desc">Register new user → status <code>pending</code></span></div>
+    <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/api/auth/user-login</span><span class="endpoint-desc">User login — body: <code>{"email", "password"}</code></span></div>
+    <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/api/auth/user-logout</span><span class="endpoint-desc">Clear user session</span></div>
+    <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/api/auth/user-status</span><span class="endpoint-desc">Current session user + live status from DB</span></div>
+
+    <h3 style="margin-top:24px;">Automation — requires <code>?key=API_KEY</code> or <code>Authorization: Bearer API_KEY</code></h3>
+    <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/api/cron</span><span class="endpoint-desc">Fetch WP posts, insert new ones. Returns <code>{"published", "skipped", "failed"}</code></span></div>
+    <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/api/posts</span><span class="endpoint-desc">Create a single post manually</span></div>
+    <div class="endpoint"><span class="method method-delete">DELETE</span><span class="endpoint-path">/api/posts/&lt;id&gt;</span><span class="endpoint-desc">Delete a post by ID</span></div>
+
+    <h3 style="margin-top:24px;">Admin — requires Google admin session</h3>
+    <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/api/admin/users</span><span class="endpoint-desc">List all registered users with passwords + status</span></div>
+    <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/api/admin/users/&lt;id&gt;/approve</span><span class="endpoint-desc">Approve a user → full access</span></div>
+    <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/api/admin/users/&lt;id&gt;/reject</span><span class="endpoint-desc">Reject a user</span></div>
+    <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/api/admin/users/create</span><span class="endpoint-desc">Create a pre-approved account (after payment)</span></div>
+    <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/api/admin/settings</span><span class="endpoint-desc">Save settings — body: <code>{"admin_whatsapp": "..."}</code></span></div>
+    <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/api/settings/premium</span><span class="endpoint-desc">Toggle premium — body: <code>{"enabled": true/false}</code></span></div>
+  </section>
+
+  <!-- 9. Automation -->
+  <section id="automation">
+    <h2><span class="sec-num">9</span> Automation — WordPress → Site Sync</h2>
+
+    <h3>How it works</h3>
+    <div class="card" style="margin-bottom:20px;">
+      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13px;">
+        <span class="badge badge-blue">cron-job.org<br><small>every 10 min</small></span>
+        <span style="color:var(--muted); font-size:18px;">→</span>
+        <span class="badge badge-green">POST /api/cron?key=API_KEY</span>
+        <span style="color:var(--muted); font-size:18px;">→</span>
+        <span class="badge badge-orange">topnewsshow.com<br><small>WP REST API</small></span>
+        <span style="color:var(--muted); font-size:18px;">→</span>
+        <span class="badge badge-blue">Neon PostgreSQL</span>
+      </div>
+    </div>
+
+    <ol style="padding-left:20px; color:#c5cad8; line-height:2.2; font-size:14px;">
+      <li>cron-job.org calls the cron endpoint every 10 minutes</li>
+      <li>Fetches 10 latest posts from <code>topnewsshow.com/wp-json/wp/v2/posts?per_page=10&amp;order=desc&amp;_embed</code></li>
+      <li>Checks each post's <code>wp_post_id</code> directly in the DB (fast, no HTTP round-trips)</li>
+      <li>New posts are parsed: title, Rumble embed URL, thumbnail, show name</li>
+      <li>Inserted into the <code>posts</code> table — oldest first to keep timeline order</li>
+    </ol>
+
+    <h3>Show detection keywords</h3>
+    <p>If no keyword matches, the post is skipped. Add new keywords in <code>api/index.py</code> → <code>_CRON_SHOW_KEYWORDS</code>.</p>
+    <div style="display:flex; flex-wrap:wrap; gap:7px; margin:12px 0;">
+      <span class="chip chip-blue">Morning Joe</span>
+      <span class="chip chip-blue">Chris Jansing Reports</span>
+      <span class="chip chip-blue">Katy Tur Reports</span>
+      <span class="chip chip-blue">Deadline: White House</span>
+      <span class="chip chip-blue">The Beat With Ari Melber</span>
+      <span class="chip chip-blue">The Weeknight</span>
+      <span class="chip chip-blue">All In with Chris Hayes</span>
+      <span class="chip chip-blue">The Rachel Maddow Show</span>
+      <span class="chip chip-blue">The Briefing with Jen Psaki</span>
+      <span class="chip chip-blue">The Last Word with Lawrence O'Donnell</span>
+      <span class="chip chip-blue">The 11th Hour with Stephanie Ruhle</span>
+      <span class="chip chip-blue">Velshi</span>
+      <span class="chip chip-blue">Alex Witt Reports</span>
+      <span class="chip chip-blue">PoliticsNation with Al Sharpton</span>
+      <span class="chip chip-blue">The Weekend</span>
+    </div>
+
+    <h3>cron-job.org setup</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body"><h4>Go to <a href="https://cron-job.org" target="_blank">cron-job.org</a> → Sign up free → Create cronjob</h4></div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Fill in the job settings</h4>
+          <div class="tbl-wrap" style="margin-top:8px;">
+            <table>
+              <tr><td><strong>URL</strong></td><td><code>https://msnow.click/api/cron?key=YOUR_API_KEY</code></td></tr>
+              <tr><td><strong>Schedule</strong></td><td>Every 10 minutes</td></tr>
+              <tr><td><strong>Method</strong></td><td>GET</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body"><h4>Save and Enable the job</h4><p>Expected response: <code>{"published": N, "skipped": N, "failed": 0}</code></p></div>
+      </div>
+    </div>
+
+    <h3>Run manually</h3>
+    <pre><code>cd auto
+pip install requests python-dotenv
+python automate_simple.py</code></pre>
+  </section>
+
+  <!-- 10. Admin Panel -->
+  <section id="admin">
+    <h2><span class="sec-num">10</span> Admin Panel</h2>
+    <p>Access at: <a href="https://msnow.click/admin" target="_blank">https://msnow.click/admin</a></p>
+    <p>Login: Google account <code>hicham1elbanaji@gmail.com</code> only.</p>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px;">
+      <div class="card">
+        <h4 style="margin-bottom:6px;">⚡ Premium toggle</h4>
+        <p style="font-size:13px; color:var(--muted);">Switch the entire site between free and premium mode. Affects all non-approved users instantly.</p>
+      </div>
+      <div class="card">
+        <h4 style="margin-bottom:6px;">📱 WhatsApp number</h4>
+        <p style="font-size:13px; color:var(--muted);">Set the admin phone used in the invoice request button. Format: international digits only, e.g. <code>12125551234</code></p>
+      </div>
+      <div class="card">
+        <h4 style="margin-bottom:6px;">👥 Users table</h4>
+        <p style="font-size:13px; color:var(--muted);">See all users with email, plain password, status. Approve or reject each user from here.</p>
+      </div>
+      <div class="card">
+        <h4 style="margin-bottom:6px;">📊 Site stats</h4>
+        <p style="font-size:13px; color:var(--muted);">Total posts, posts by source, last automation run time.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11. Premium System -->
+  <section id="premium">
+    <h2><span class="sec-num">11</span> Premium / Freemium System</h2>
+
+    <h3>Access levels (when premium is ON)</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>User type</th><th>Access</th></tr></thead>
+        <tbody>
+          <tr><td>Not logged in</td><td>Free 20% of today's shows</td></tr>
+          <tr><td>Logged in — <span class="chip chip-yellow">pending</span></td><td>Free 20% of today's shows</td></tr>
+          <tr><td>Logged in — <span class="chip chip-red">rejected</span></td><td>Free 20% of today's shows</td></tr>
+          <tr><td>Logged in — <span class="chip chip-green">approved</span></td><td>✅ All shows, full access</td></tr>
+          <tr><td>Premium OFF</td><td>✅ Everyone watches everything</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>How the free 20% selection works</h3>
+    <div class="alert info">
+      <span class="alert-icon">🔢</span>
+      <span>A <strong>date-seeded LCG shuffle</strong> selects 20% of videos. Seed = <code>YYYYMMDD</code> integer. Same seed all day = same free videos. Changes at midnight. Refreshing the page does <strong>not</strong> change which shows are free.</span>
+    </div>
+    <pre><code>// In index.html — useFreeIds()
+const t = new Date();
+let s = t.getFullYear() * 10000 + (t.getMonth() + 1) * 100 + t.getDate();
+// LCG shuffle using seed s...
+const count = Math.max(1, Math.ceil(ids.length * 0.2));
+return new Set(ids.slice(0, count));  // stable all day</code></pre>
+  </section>
+
+  <!-- 12. User Flow -->
+  <section id="users">
+    <h2><span class="sec-num">12</span> User Registration &amp; Approval Flow</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body"><h4>User clicks Sign In → opens modal</h4></div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>User fills email + password → clicks "Create account for $9.99/month"</h4>
+          <p>Account created in DB with <span class="chip chip-yellow">pending</span> status</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Modal shows pending screen with two contact buttons</h4>
+          <p><strong>WhatsApp:</strong> pre-filled → <em>"Hello, I want the invoice please. My email is user@example.com"</em></p>
+          <p><strong>Email:</strong> same message via mail client</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body"><h4>Admin receives message, processes payment</h4></div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h4>Admin goes to <a href="https://msnow.click/admin" target="_blank">/admin</a> → Users table → clicks Approve</h4>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <h4>User clicks "Pending" badge in header → app re-fetches status → full access granted</h4>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:24px;">Create an approved account manually (after payment)</h3>
+    <pre><code>POST https://msnow.click/api/admin/users/create
+Cookie: session=ADMIN_SESSION_COOKIE
+
+{"email": "user@example.com", "password": "pass123"}</code></pre>
+    <p style="margin-top:8px;">Or use the admin panel → Users section → create form.</p>
+  </section>
+
+  <!-- 13. PWA -->
+  <section id="pwa">
+    <h2><span class="sec-num">13</span> PWA — Android App</h2>
+    <p>The site is a Progressive Web App. Users can install it on Android as a home screen app with no App Store needed.</p>
+
+    <h3>How to install (user-facing)</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-body"><h4>Open <a href="https://msnow.click" target="_blank">https://msnow.click</a> in Chrome on Android</h4></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-body"><h4>Tap the ⋮ menu → "Add to Home Screen"</h4></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-body"><h4>Tap Install — app appears on home screen with msnow icon</h4><p>Opens in standalone mode — no Chrome address bar, looks like a native app</p></div></div>
+    </div>
+
+    <h3>PWA files</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>static/manifest.json</code></td><td>App name, colors, icons, display mode</td></tr>
+          <tr><td><code>static/sw.js</code></td><td>Service worker — handles offline caching</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Service Worker caching strategy</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Route</th><th>Strategy</th></tr></thead>
+        <tbody>
+          <tr><td><code>/api/*</code> and <code>/auth/*</code></td><td>Network only — always fresh data</td></tr>
+          <tr><td>Everything else</td><td>Network first → fall back to cache if offline</td></tr>
+          <tr><td>On install</td><td>Pre-caches: <code>/</code>, favicon, logo</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 14. Troubleshooting -->
+  <section id="problems">
+    <h2><span class="sec-num">14</span> Common Problems &amp; Fixes</h2>
+
+    <div class="problem">
+      <div class="problem-q">🔄 Site shows old content after a code push</div>
+      <div class="problem-a">Vercel deployment takes ~90 seconds. Wait, then hard-refresh with <code>Ctrl+Shift+R</code> (or Cmd+Shift+R on Mac).</div>
+    </div>
+
+    <div class="problem">
+      <div class="problem-q">📺 New WordPress posts not appearing on the site</div>
+      <div class="problem-a">
+        <ul>
+          <li>Check cron-job.org → last execution status should be <span class="chip chip-green">200</span></li>
+          <li>Check the response body: <code>{"skipped": 10}</code> means posts exist but no known show matched</li>
+          <li>Go to topnewsshow.com and check the post titles — the show keyword might not be in <code>_CRON_SHOW_KEYWORDS</code></li>
+          <li>Add the missing keyword (see section 15)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="problem">
+      <div class="problem-q">🔐 Admin login stopped working</div>
+      <div class="problem-a">
+        <ul>
+          <li>Check Google OAuth credentials are still valid at <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></li>
+          <li>Make sure <code>GOOGLE_CLIENT_ID</code> env var in Vercel matches your OAuth client ID</li>
+          <li>Make sure you're logging in with <code>hicham1elbanaji@gmail.com</code></li>
+          <li>Check that <code>msnow.click</code> is in the OAuth authorized domains list</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="problem">
+      <div class="problem-q">💥 500 errors on Vercel</div>
+      <div class="problem-a">
+        Go to Vercel dashboard → Functions tab → click the failed invocation. You'll see the full Python traceback.
+        Most common cause: missing or wrong environment variable.
+      </div>
+    </div>
+
+    <div class="problem">
+      <div class="problem-q">🗄️ Database errors after adding a new column</div>
+      <div class="problem-a">
+        On Postgres, always use <code>ALTER TABLE ... ADD COLUMN IF NOT EXISTS</code>. Using plain ALTER TABLE when the column already exists aborts the whole transaction.
+        <pre style="margin-top:8px;"><code>-- Correct:
+ALTER TABLE users ADD COLUMN IF NOT EXISTS new_col TEXT DEFAULT '';
+-- Wrong (will crash if column exists):
+ALTER TABLE users ADD COLUMN new_col TEXT;</code></pre>
+      </div>
+    </div>
+
+    <div class="problem">
+      <div class="problem-q">🔑 Users can't log in — password rejected</div>
+      <div class="problem-a">
+        Passwords are hashed with Werkzeug's <code>generate_password_hash</code>. The <code>password_plain</code> column is just for admin display — do not try to use it to manually set a password. Use the admin panel's "Create account" feature to reset access.
+      </div>
+    </div>
+
+    <div class="problem">
+      <div class="problem-q">🎬 Video player doesn't play</div>
+      <div class="problem-a">
+        Videos are Rumble embeds. If Rumble is down, nothing to fix on our side. Check the <code>rumble_link</code> column in the DB for that post — if it's empty, the WordPress post had no Rumble embed.
+      </div>
+    </div>
+
+    <div class="problem">
+      <div class="problem-q">🆓 Free 20% selection seems to change unexpectedly</div>
+      <div class="problem-a">
+        It's seeded by today's date (<code>YYYYMMDD</code>) — same result all day. If it seems to change: check if new videos were added (they change the pool), or if the device clock jumped to a new day.
+      </div>
+    </div>
+  </section>
+
+  <!-- 15. Add a New Show -->
+  <section id="newshow">
+    <h2><span class="sec-num">15</span> How to Add a New Show</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Add keyword in <code>api/index.py</code></h4>
+          <p>Find <code>_CRON_SHOW_KEYWORDS</code> and add:</p>
+          <pre style="margin-top:8px;"><code>('keyword from title', 'Official Show Name'),</code></pre>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Add the same keyword in <code>auto/automate_simple.py</code></h4>
+          <p>Find <code>SHOW_KEYWORDS</code> and add the same entry.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Add host name in <code>templates/index.html</code></h4>
+          <p>Find <code>const HOSTS = {</code> and add:</p>
+          <pre style="margin-top:8px;"><code>'Official Show Name': 'Host Full Name',</code></pre>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Push to git — done</h4>
+          <pre style="margin-top:8px;"><code>git add -A
+git commit -m "Add new show: Official Show Name"
+git push</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 16. Credentials -->
+  <section id="credentials">
+    <h2><span class="sec-num">16</span> Key Contacts &amp; Credentials</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Service</th><th>URL</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Live site</td><td><a href="https://msnow.click" target="_blank">msnow.click</a></td><td>Main website</td></tr>
+          <tr><td>Admin panel</td><td><a href="https://msnow.click/admin" target="_blank">msnow.click/admin</a></td><td>Requires Google login</td></tr>
+          <tr><td>Vercel</td><td><a href="https://vercel.com" target="_blank">vercel.com</a></td><td>Hosting, env vars, function logs</td></tr>
+          <tr><td>Neon (database)</td><td><a href="https://neon.tech" target="_blank">neon.tech</a></td><td>PostgreSQL — connection string here</td></tr>
+          <tr><td>Google OAuth</td><td><a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></td><td>OAuth client ID for admin login</td></tr>
+          <tr><td>cron-job.org</td><td><a href="https://cron-job.org" target="_blank">cron-job.org</a></td><td>10-min automation trigger</td></tr>
+          <tr><td>WordPress source</td><td><a href="https://topnewsshow.com" target="_blank">topnewsshow.com</a></td><td>Read-only, no credentials needed</td></tr>
+          <tr><td>GitHub repo</td><td><a href="https://github.com/maricheel/my-news-site" target="_blank">github.com/maricheel/my-news-site</a></td><td>Source code</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="alert warn" style="margin-top:20px;">
+      <span class="alert-icon">⚠️</span>
+      <span>To change the admin email, edit line <code>ALLOWED_EMAIL = 'hicham1elbanaji@gmail.com'</code> in <code>api/index.py</code> and push to git.</span>
+    </div>
+
+    <div class="card" style="margin-top:16px; border-color: rgba(79,142,247,.3);">
+      <p style="font-size:13px; color:var(--muted); margin:0;">
+        📅 Last updated: May 2026 &nbsp;·&nbsp;
+        Built with Flask + React + Vercel &nbsp;·&nbsp;
+        <a href="MAINTENANCE.md">View markdown version</a>
+      </p>
+    </div>
+  </section>
+
+</main>
+</div>
+
+<script>
+  // Highlight active nav link on scroll
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('nav a');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navLinks.forEach(a => a.classList.remove('active'));
+        const active = document.querySelector(`nav a[href="#${e.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -75% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
