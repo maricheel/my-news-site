@@ -66,9 +66,6 @@
         ${post.rumble_link ? `
         <div class="relative w-full overflow-hidden rounded-xl ring-1 ring-white/10 mb-8 bg-ink-950" style="padding-bottom:56.25%;height:0">
           <iframe src="${post.rumble_link}" class="absolute inset-0 w-full h-full" allowfullscreen frameborder="0" scrolling="no"></iframe>
-        </div>` : post.thumbnail_url ? `
-        <div class="w-full overflow-hidden rounded-xl ring-1 ring-white/10 mb-8" style="aspect-ratio:16/9">
-          <img src="${post.thumbnail_url}" alt="" class="w-full h-full object-cover">
         </div>` : ''}
 
         <div class="rounded-xl bg-ink-900/60 ring-1 ring-ink-800 p-6 md:p-8">

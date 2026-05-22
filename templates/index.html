@@ -404,7 +404,71 @@ function WatchView({ video, all, onOpen, onClose }) {
   );
 }
 
-// ── Hero ──────────────────────────────────────────────────────────────────
+// ── Live stream source — change this URL to any embeddable stream ─────────
+// YouTube channel live: https://www.youtube.com/embed/live_stream?channel=CHANNEL_ID
+// YouTube video:        https://www.youtube.com/embed/VIDEO_ID?autoplay=1
+const LIVE_SRC = 'https://www.youtube.com/embed/live_stream?channel=UCaXkIU1QidjPwiAYu6GcHjg&autoplay=1&mute=1';
+
+// ── Live Hero ─────────────────────────────────────────────────────────────
+function LiveHero() {
+  const now = new Date().toLocaleString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric',
+    hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+  });
+  return (
+    <section className="relative overflow-hidden rounded-xl ring-1 ring-white/5 bg-ink-950">
+      <div className="grid lg:grid-cols-[1.55fr_1fr]">
+
+        {/* ── Player ── */}
+        <div className="relative bg-ink-950" style={{ aspectRatio: '16/9' }}>
+          <iframe
+            src={LIVE_SRC}
+            className="absolute inset-0 w-full h-full"
+            allow="autoplay; fullscreen; picture-in-picture"
+            allowFullScreen
+            frameBorder="0"
+            title="MSNBC Live"
+          />
+          {/* Live badge */}
+          <div className="absolute top-4 left-4 z-10 pointer-events-none">
+            <span className="inline-flex items-center gap-1.5 rounded-sm bg-live px-2.5 py-1 font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-ink-100 shadow-lg">
+              <span className="w-1.5 h-1.5 rounded-full bg-ink-100 live-dot" />
+              LIVE
+            </span>
+          </div>
+        </div>
+
+        {/* ── Info panel ── */}
+        <div className="relative p-6 md:p-10 lg:p-12 flex flex-col justify-center bg-gradient-to-br from-ink-900 to-ink-950">
+          <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-live mb-3 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-live live-dot" />
+            Now Broadcasting
+          </div>
+          <h1 className="font-serif text-3xl md:text-4xl lg:text-[40px] leading-[1.05] text-ink-100">
+            MSNBC Live
+          </h1>
+          <p className="mt-2 font-mono text-[12px] text-ink-500">{now}</p>
+          <p className="mt-5 text-[15px] leading-relaxed text-ink-400 text-pretty">
+            Live coverage of breaking news, politics, and analysis — 24 hours a day from MSNBC anchors and correspondents.
+          </p>
+          <div className="mt-8 pt-6 border-t border-ink-800 grid grid-cols-2 gap-4 text-[12px]">
+            <div>
+              <div className="font-mono uppercase tracking-[0.16em] text-ink-600 mb-1">Network</div>
+              <div className="text-ink-200">MSNBC</div>
+            </div>
+            <div>
+              <div className="font-mono uppercase tracking-[0.16em] text-ink-600 mb-1">Format</div>
+              <div className="text-ink-200">Live Broadcast</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  );
+}
+
+// ── Hero (kept for reference, replaced by LiveHero in BrowseView) ─────────
 function Hero({ featured, onOpen }) {
   return (
     <section className="relative overflow-hidden rounded-xl ring-1 ring-white/5 bg-ink-900">
@@ -591,7 +655,7 @@ function BrowseView({ videos, activeCategory, query, onOpen, featured }) {
   const showHero = activeCategory === 'All Shows' && !query && featured;
   return (
     <div className="space-y-12">
-      {showHero && <Hero featured={featured} onOpen={onOpen} />}
+      {showHero && <LiveHero />}
 
       <section>
         <SectionHeader
