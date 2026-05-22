@@ -327,10 +327,10 @@ function WatchView({ video, all, onOpen, onClose }) {
         <div>
           {/* Player */}
           {video.rumble_link && (
-            <div className="relative w-full overflow-hidden rounded-lg bg-ink-950 ring-1 ring-white/10" style={{ paddingBottom: '56.25%', height: 0 }}>
+            <div className="w-full overflow-hidden rounded-lg bg-ink-950 ring-1 ring-white/10" style={{ aspectRatio: '16/9' }}>
               <iframe
                 src={video.rumble_link}
-                className="absolute inset-0 w-full h-full"
+                className="w-full h-full block"
                 allowFullScreen frameBorder="0" scrolling="no"
               />
             </div>
