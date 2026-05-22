@@ -356,6 +356,33 @@ def admin_reject_user(user_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/admin/users/create', methods=['POST'])
+@require_admin
+def admin_create_user():
+    """Admin manually creates an approved account after payment."""
+    data = request.get_json() or {}
+    email    = (data.get('email') or '').strip().lower()
+    password = data.get('password') or ''
+    if not email or not password:
+        return jsonify({'error': 'Email and password are required'}), 400
+    if len(password) < 6:
+        return jsonify({'error': 'Password must be at least 6 characters'}), 400
+    try:
+        pw_hash = generate_password_hash(password)
+        conn = get_db(); c = get_cursor(conn)
+        c.execute(f'SELECT id FROM users WHERE email={PH}', (email,))
+        if fetchone(c):
+            # Update existing (e.g. pending) user → approved + new password
+            c.execute(f"UPDATE users SET status='approved', password_hash={PH} WHERE email={PH}",
+                      (pw_hash, email))
+        else:
+            c.execute(f"INSERT INTO users (email, password_hash, status) VALUES ({PH},{PH},'approved')",
+                      (email, pw_hash))
+        conn.commit(); conn.close()
+        return jsonify({'ok': True, 'email': email})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/search')
 def search():

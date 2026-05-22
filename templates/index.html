@@ -910,11 +910,11 @@ function UserAuthModal({ onClose, onSuccess }) {
   };
 
   const waText = encodeURIComponent(
-    `Hi! I just registered on msnow.click with email ${resolvedEmail || email}. Please approve my account.`
+    `Hello, I want the invoice please. My email is ${resolvedEmail || email}.`
   );
   const waLink = contact.whatsapp ? `https://wa.me/${contact.whatsapp}?text=${waText}` : null;
   const mailLink = contact.email
-    ? `mailto:${contact.email}?subject=Account approval request&body=Hi, I registered on msnow.click with email ${resolvedEmail || email}. Please approve my account.`
+    ? `mailto:${contact.email}?subject=Invoice request - msnow.click&body=Hello, I want the invoice please. My email is ${resolvedEmail || email}.`
     : null;
 
   return (
@@ -932,12 +932,12 @@ function UserAuthModal({ onClose, onSuccess }) {
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-amber-900/30 ring-1 ring-amber-700/40 mb-5">
               <Icon name="clock" size={26} className="text-amber-400" />
             </div>
-            <h2 className="font-serif text-2xl text-ink-100 mb-2">Account pending</h2>
+            <h2 className="font-serif text-2xl text-ink-100 mb-2">One last step!</h2>
             <p className="text-[13px] text-ink-400 mb-2">
-              Your account is waiting for admin approval. Until then you can watch the free daily shows.
+              Your account is created. To activate it, send us a message to request your invoice.
             </p>
             <p className="text-[13px] text-ink-300 font-medium mb-6">
-              Contact the admin to get approved faster:
+              Contact us via WhatsApp or Email:
             </p>
             <div className="space-y-3 mb-6">
               {waLink && (
@@ -997,12 +997,14 @@ function UserAuthModal({ onClose, onSuccess }) {
           </p>
 
           <div className="flex rounded-md ring-1 ring-ink-800 overflow-hidden mb-6">
-            {[['login','Sign In'],['register','Create Account']].map(([m, lbl]) => (
-              <button key={m} onClick={() => { setMode(m); setError(''); }}
-                className={`flex-1 py-2 text-[13px] font-medium transition ${mode === m ? 'bg-ember text-ink-950' : 'text-ink-400 hover:text-ink-100'}`}>
-                {lbl}
-              </button>
-            ))}
+            <button onClick={() => { setMode('login'); setError(''); }}
+              className={`flex-1 py-2 text-[13px] font-medium transition ${mode === 'login' ? 'bg-ember text-ink-950' : 'text-ink-400 hover:text-ink-100'}`}>
+              Sign In
+            </button>
+            <button onClick={() => { setMode('register'); setError(''); }}
+              className={`flex-1 py-2 text-[12px] font-medium transition leading-tight px-2 ${mode === 'register' ? 'bg-ember text-ink-950' : 'text-ink-400 hover:text-ink-100'}`}>
+              Create account · $9.99/mo
+            </button>
           </div>
 
           <form onSubmit={submit} className="space-y-3">
@@ -1014,7 +1016,7 @@ function UserAuthModal({ onClose, onSuccess }) {
               className="w-full bg-ink-950 ring-1 ring-ink-800 focus:ring-ember/50 rounded-md px-3 py-2.5 text-[14px] text-ink-100 placeholder:text-ink-600 outline-none transition" />
             {mode === 'register' && (
               <p className="text-[11px] text-ink-600 font-mono px-1">
-                After registering you'll be asked to contact the admin for approval.
+                After registering you'll send us an invoice request to activate your account.
               </p>
             )}
             {error && (
@@ -1022,7 +1024,7 @@ function UserAuthModal({ onClose, onSuccess }) {
             )}
             <button type="submit" disabled={loading}
               className="w-full h-11 rounded-md bg-ember hover:bg-ember/90 disabled:opacity-60 text-ink-950 font-semibold text-[14px] transition">
-              {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
+              {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create account for $9.99/month'}
             </button>
           </form>
         </>)}
