@@ -323,18 +323,21 @@ function VideoCard({ video, onOpen, locked }) {
         )}
       </div>
       <div className="mt-3 space-y-1.5">
-        <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.14em] text-ink-400">
-          <span className={locked ? 'text-ink-600' : 'text-ember-soft'}>{locked ? 'Premium' : video.chip}</span>
-          <span className="text-ink-700">·</span>
-          <span>{video.category}</span>
+        <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.14em] text-ink-400 truncate">
+          <span className={`shrink-0 ${locked ? 'text-ink-600' : 'text-ember-soft'}`}>{locked ? 'Premium' : video.chip}</span>
+          <span className="text-ink-700 shrink-0">·</span>
+          <span className="truncate">{video.category}</span>
         </div>
-        <h3 className={`text-[15px] leading-snug font-medium text-pretty line-clamp-2 transition-colors ${locked ? 'text-ink-500' : 'text-ink-100 group-hover:text-ember-soft'}`}>
+        <h3
+          className={`text-[15px] leading-snug font-medium line-clamp-2 transition-colors ${locked ? 'text-ink-500' : 'text-ink-100 group-hover:text-ember-soft'}`}
+          style={{minHeight:'2.75rem', overflow:'hidden'}}
+        >
           {video.title}
         </h3>
-        <div className="flex items-center gap-2 text-xs text-ink-500">
-          <span>{video.host}</span>
-          <span className="text-ink-700">·</span>
-          <span>{video.uploaded}</span>
+        <div className="flex items-center gap-2 text-xs text-ink-500 truncate">
+          <span className="truncate">{video.host}</span>
+          <span className="text-ink-700 shrink-0">·</span>
+          <span className="shrink-0">{video.uploaded}</span>
         </div>
       </div>
     </button>
@@ -547,16 +550,16 @@ function LiveHero() {
             Now Broadcasting
           </div>
           <h1 className="font-serif text-3xl md:text-4xl lg:text-[40px] leading-[1.05] text-ink-100">
-            MSNBC Live
+            MSNOW Live
           </h1>
           <p className="mt-2 font-mono text-[12px] text-ink-500">{now}</p>
           <p className="mt-5 text-[15px] leading-relaxed text-ink-400 text-pretty">
-            Live coverage of breaking news, politics, and analysis — 24 hours a day from MSNBC anchors and correspondents.
+            Live coverage of breaking news, politics, and analysis — 24 hours a day from MSNOW anchors and correspondents.
           </p>
           <div className="mt-8 pt-6 border-t border-ink-800 grid grid-cols-2 gap-4 text-[12px]">
             <div>
               <div className="font-mono uppercase tracking-[0.16em] text-ink-600 mb-1">Network</div>
-              <div className="text-ink-200">MSNBC</div>
+              <div className="text-ink-200">MSNOW</div>
             </div>
             <div>
               <div className="font-mono uppercase tracking-[0.16em] text-ink-600 mb-1">Format</div>
@@ -794,7 +797,7 @@ function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, feature
             </div>
             <div>
               <div className="text-[14px] font-medium text-ink-100">Premium archive</div>
-              <div className="text-[12px] text-ink-400">Sign in or create a free account to watch every segment.</div>
+              <div className="text-[12px] text-ink-400">Sign in or create an account to watch every daily show.</div>
             </div>
           </div>
           <button onClick={onOpenAuth}
@@ -883,7 +886,7 @@ function UserAuthModal({ onClose, onSuccess, initialMode = 'login' }) {
           {mode === 'login' ? 'Sign in' : 'Create account'}
         </h2>
         <p className="text-[13px] text-ink-500 mb-6">
-          {mode === 'login' ? 'Access the full archive of every MSNBC show.' : 'Free account — watch everything instantly.'}
+          {mode === 'login' ? 'Access the full archive of every daily show.' : 'Free account — watch everything instantly.'}
         </p>
 
         {/* Tabs */}
@@ -1051,7 +1054,7 @@ function App() {
               <img src="/static/images/favicon.png" alt="" className="sm:hidden w-6 h-6 rounded-sm object-cover" />
               <span className="font-serif text-xl text-ink-100">msnow.click</span>
             </div>
-            <p className="mt-3 text-ink-500 max-w-sm">Daily political coverage from every MSNBC show. Auto-updated every 15 minutes.</p>
+            <p className="mt-3 text-ink-500 max-w-sm">Daily political coverage from every MSNOW show. Auto-updated every 15 minutes.</p>
           </div>
           <div>
             <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-600 mb-3">Shows</div>
