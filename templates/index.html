@@ -989,7 +989,7 @@ function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, feature
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6 gap-x-3 gap-y-6 sm:gap-x-4 sm:gap-y-8">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7 gap-x-3 gap-y-5 sm:gap-x-3 sm:gap-y-7">
               {pageVideos.map(v => (
                 <VideoCard key={v.id} video={v} onOpen={onOpen}
                   locked={isLocked ? isLocked(v) : false}
