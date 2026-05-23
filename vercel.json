@@ -26,5 +26,19 @@
       "src": "/(.*)",
       "dest": "api/index.py"
     }
+  ],
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "www.msnbc.click" }],
+      "destination": "https://msnow.click/$1",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "msnbc.click" }],
+      "destination": "https://msnow.click/$1",
+      "permanent": true
+    }
   ]
 }
