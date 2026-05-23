@@ -157,6 +157,10 @@
   }
   .free-glow      {animation:freeGlowDark  2.4s ease-in-out;border-radius:6px}
   html.light .free-glow{animation:freeGlowLight 2.4s ease-in-out!important}
+  /* Watch view: smaller video player on desktop */
+  @media (min-width:1024px){
+    .watch-player{ max-width:65%; margin:0 auto; }
+  }
 </style>
 <script>
   /* Apply stored theme before first paint to avoid flash */
@@ -513,9 +517,8 @@ function WatchView({ video, all, onOpen, onClose, isLocked }) {
         <div>
           {/* Player */}
           {video.embed_src && (
-            <div className="overflow-hidden sm:rounded-lg bg-ink-950 sm:ring-1 sm:ring-white/10"
-              //style={{ aspectRatio:'16/9', width:'80vw', position:'relative', left:'45%', transform:'translateX(-50%)', maxWidth:'80vw' }}>
-style={{ aspectRatio:'16/9', width:'90vw'}}>
+            <div className="watch-player overflow-hidden sm:rounded-lg bg-ink-950 sm:ring-1 sm:ring-white/10"
+              style={{ aspectRatio:'16/9', width:'100%' }}>
               <iframe
                 src={video.embed_src}
                 className="w-full h-full block"
@@ -989,7 +992,7 @@ function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, feature
           </div>
         ) : (
           <>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(170px,1fr))',gap:'10px 10px'}}>
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 gap-y-6 sm:gap-x-5 sm:gap-y-10">
               {pageVideos.map(v => (
                 <VideoCard key={v.id} video={v} onOpen={onOpen}
                   locked={isLocked ? isLocked(v) : false}
