@@ -415,13 +415,13 @@ function VideoCard({ video, onOpen, locked, highlighted }) {
         )}
       </div>
       <div className="mt-2 sm:mt-3 space-y-1 sm:space-y-1.5">
-        <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.12em] text-ink-400 truncate">
+        <div className="hidden sm:flex items-center gap-1.5 text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.12em] text-ink-400 truncate">
           <span className={`shrink-0 ${locked ? 'text-ink-600' : 'text-ember-soft'}`}>{locked ? 'Premium' : video.chip}</span>
           <span className="text-ink-700 shrink-0">·</span>
           <span className="truncate">{video.category}</span>
         </div>
         <h3
-          className={`text-[12px] sm:text-[15px] leading-snug font-medium line-clamp-2 transition-colors ${locked ? 'text-ink-500' : 'text-ink-100 group-hover:text-ember-soft'}`}
+          className={`hidden sm:block text-[12px] sm:text-[15px] leading-snug font-medium line-clamp-2 transition-colors ${locked ? 'text-ink-500' : 'text-ink-100 group-hover:text-ember-soft'}`}
           style={{minHeight:'2.4rem', overflow:'hidden'}}
         >
           {video.title}
