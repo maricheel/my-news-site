@@ -223,23 +223,18 @@ def robots_txt():
     return app.response_class(body, mimetype='text/plain')
 
 
-# ── sitemap.xml ───────────────────────────────────────────────────────────────
-@app.route('/sitemap.xml')
-def sitemap_xml():
-    try:
-        conn = get_db(); c = get_cursor(conn)
-        c.execute('SELECT id, created_at FROM posts ORDER BY created_at DESC LIMIT 200')
-        rows = fetchall(c); conn.close()
-    except Exception:
-        rows = []
-
-    lines = ['<?xml version="1.0" encoding="UTF-8"?>',
-             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-             '  <url>',
-             '    <loc>https://msnow.click/</loc>',
-             '    <changefreq>hourly</changefreq>',
-             '    <priority>1.0</priority>',
-             '  </url>']
+# ── sitemap helpers ───────────────────────────────────────────────────────────
+def _build_sitemap_xml(rows):
+    """Build sitemap XML string from a list of post dicts."""
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        '  <url>',
+        '    <loc>https://msnow.click/</loc>',
+        '    <changefreq>hourly</changefreq>',
+        '    <priority>1.0</priority>',
+        '  </url>',
+    ]
     for row in rows:
         raw_dt = row.get('created_at', '')
         dt = str(raw_dt)[:10] if raw_dt else ''
@@ -252,7 +247,63 @@ def sitemap_xml():
             '  </url>',
         ]
     lines.append('</urlset>')
-    xml = '\n'.join(l for l in lines if l)
+    return '\n'.join(l for l in lines if l)
+
+
+def _refresh_sitemap_cache(conn):
+    """Regenerate sitemap XML and store it in settings. Call after any post change."""
+    try:
+        c = get_cursor(conn)
+        c.execute('SELECT id, created_at FROM posts ORDER BY created_at DESC LIMIT 500')
+        rows = fetchall(c)
+        xml = _build_sitemap_xml(rows)
+        if USE_POSTGRES:
+            c.execute(
+                'INSERT INTO settings(key,value) VALUES(%s,%s) '
+                'ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value',
+                ('sitemap_xml', xml)
+            )
+        else:
+            c.execute('INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)', ('sitemap_xml', xml))
+        conn.commit()
+        print(f'[SITEMAP] Cache refreshed — {len(rows)} URLs')
+        return xml
+    except Exception as e:
+        print(f'[SITEMAP] Cache refresh failed: {e}')
+        return None
+
+
+# ── sitemap.xml ───────────────────────────────────────────────────────────────
+@app.route('/sitemap.xml')
+def sitemap_xml():
+    # ── 1. Serve pre-built cache (single fast settings row, no post scan) ─────
+    cached = get_setting('sitemap_xml', '')
+    if cached and cached.startswith('<?xml'):
+        return Response(cached, status=200, mimetype='application/xml',
+                        headers={'Content-Type': 'application/xml; charset=utf-8',
+                                 'Cache-Control': 'public, max-age=3600'})
+
+    # ── 2. Fallback: build dynamically and save for next time ─────────────────
+    try:
+        conn = get_db(); c = get_cursor(conn)
+        c.execute('SELECT id, created_at FROM posts ORDER BY created_at DESC LIMIT 500')
+        rows = fetchall(c)
+        xml  = _build_sitemap_xml(rows)
+        try:
+            if USE_POSTGRES:
+                c.execute(
+                    'INSERT INTO settings(key,value) VALUES(%s,%s) '
+                    'ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value',
+                    ('sitemap_xml', xml)
+                )
+            else:
+                c.execute('INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)', ('sitemap_xml', xml))
+            conn.commit()
+        except Exception:
+            pass
+        conn.close()
+    except Exception:
+        xml = _build_sitemap_xml([])   # homepage-only fallback — always valid XML
     return Response(xml, status=200, mimetype='application/xml',
                     headers={'Content-Type': 'application/xml; charset=utf-8',
                              'Cache-Control': 'public, max-age=3600'})
@@ -457,6 +508,21 @@ def admin_create_user():
 @app.route('/search')
 def search():
     return render_template('search.html', query=request.args.get('q', ''))
+
+
+# ── Admin: regenerate sitemap cache ───────────────────────────────────────────
+@app.route('/api/regen-sitemap', methods=['GET', 'POST'])
+@require_admin
+def regen_sitemap():
+    try:
+        conn = get_db()
+        xml = _refresh_sitemap_cache(conn)
+        conn.close()
+        if xml:
+            return jsonify({'ok': True, 'bytes': len(xml), 'urls': xml.count('<loc>')})
+        return jsonify({'error': 'Refresh failed — check logs'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 # ── API: list posts ───────────────────────────────────────────────────────────
@@ -750,6 +816,8 @@ def run_cron():
                 existing_wp_ids.add(raw['id'])
                 existing_titles.add(p['title'].lower())
                 published += 1
+                # ── Refresh sitemap cache so it's always current ───────────
+                _refresh_sitemap_cache(conn)
                 # ── Ping Google to index the new post immediately ──────────
                 try:
                     post_url = f'https://msnow.click/post/{new_id}'
