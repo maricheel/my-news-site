@@ -218,7 +218,7 @@ def robots_txt():
         "Disallow: /auth/\n"
         "Disallow: /api/\n"
         "\n"
-        "Sitemap: https://msnow.click/sitemap.xml\n"
+        "Sitemap: https://msnow.click/mysite.xml\n"
     )
     return app.response_class(body, mimetype='text/plain')
 
@@ -274,7 +274,7 @@ def _refresh_sitemap_cache(conn):
 
 
 # ── sitemap.xml ───────────────────────────────────────────────────────────────
-@app.route('/sitemap.xml')
+@app.route('/mysite.xml')
 def sitemap_xml():
     # ── 1. Serve pre-built cache (single fast settings row, no post scan) ─────
     cached = get_setting('sitemap_xml', '')
@@ -831,7 +831,7 @@ def run_cron():
                     # 2. Google sitemap ping (signals new content)
                     http_req.get(
                         'https://www.google.com/ping',
-                        params={'sitemap': 'https://msnow.click/sitemap.xml'},
+                        params={'sitemap': 'https://msnow.click/mysite.xml'},
                         timeout=5
                     )
                     print(f'[CRON] Pinged Google + IndexNow for {post_url}')

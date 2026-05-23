@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "sitemap.xml",
+      "src": "mysite.xml",
       "use": "@vercel/static"
     },
     {
@@ -15,8 +15,8 @@
   ],
   "routes": [
     {
-      "src": "/sitemap\\.xml",
-      "dest": "/sitemap.xml",
+      "src": "/mysite\\.xml",
+      "dest": "/mysite.xml",
       "headers": {
         "Content-Type": "application/xml; charset=utf-8",
         "Cache-Control": "public, max-age=3600"
