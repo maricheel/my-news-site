@@ -1387,6 +1387,34 @@ function App() {
     } catch {}
   };
 
+  // Poll session every 30 s — if logged out while watching premium content, gate immediately
+  useEffect(() => {
+    if (!premium) return; // no polling needed in free mode
+    const tick = async () => {
+      try {
+        const d = await fetch('/api/auth/user-status').then(r => r.json());
+        const nowEmail  = d.logged_in ? (d.email  || '') : '';
+        const nowStatus = d.logged_in ? (d.status || '') : '';
+        setUserEmail(prev => {
+          if (prev && !nowEmail) {
+            // Was logged in, now session is gone
+            setUserStatus('');
+            setPlaying(curr => {
+              // If actively watching something that would now be locked, close it
+              if (curr) { setAuthModal(true); return null; }
+              return curr;
+            });
+          } else {
+            setUserStatus(nowStatus);
+          }
+          return nowEmail;
+        });
+      } catch {}
+    };
+    const id = setInterval(tick, 30000);
+    return () => clearInterval(id);
+  }, [premium]);
+
   // Only approved users get full access; pending/not-logged-in see free 20% only
   const isLocked = useCallback(v => {
     if (!premium) return false;
