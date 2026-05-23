@@ -318,21 +318,14 @@ def sitemap_xml():
 # ── Page routes ───────────────────────────────────────────────────────────────
 _INDEX_HTML_TPL = None  # cached once per cold-start
 
-def _build_static_root(posts):
+def _build_noscript_seo(posts):
     """
-    Build real visible HTML inside <div id="root"> so Google's first-pass crawler
-    sees actual content before any JavaScript executes — this definitively fixes Soft 404.
-    React will replace this markup when it mounts; users never notice.
+    Build SEO content inside <noscript> — invisible to JS users (no flash),
+    but readable by Google's first-pass crawler → fixes Soft 404.
+    Placed right after <div id="root"></div> so React never touches it.
     """
-    VALID_CATS = {'The Daily Show', 'Morning Joe', 'Deadline White House',
-                  'The Rachel Maddow Show', 'Alex Wagner Tonight',
-                  'All In with Chris Hayes', 'The 11th Hour',
-                  'Hardball', 'Last Word', 'Velshi', 'The Beat',
-                  'Way Too Early', 'Andrea Mitchell Reports',
-                  'Hallie Jackson Reports', 'Katy Tur Reports',
-                  'José Díaz-Balart Reports'}
     articles = []
-    for p in (posts or [])[:30]:  # top-30 is plenty for Google
+    for p in (posts or [])[:30]:
         cats = p.get('categories') or []
         if isinstance(cats, str):
             try: cats = json.loads(cats)
@@ -340,29 +333,19 @@ def _build_static_root(posts):
         cat = cats[0] if cats else ''
         title = _html.escape(p.get('title') or '')
         pid   = p.get('id', '')
-        thumb = _html.escape(p.get('thumbnail_url') or '')
-        img_tag = f'<img src="{thumb}" alt="{title}" loading="lazy" style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:6px">' if thumb else ''
         articles.append(
-            f'<article style="margin-bottom:1.5rem;padding:1rem;background:#2a2723;border-radius:8px">'
-            f'{img_tag}'
-            f'<h2 style="font-size:1rem;margin:.5rem 0;"><a href="/post/{pid}" style="color:#e8c84a;text-decoration:none">{title}</a></h2>'
-            f'<p style="font-size:.8rem;color:#aaa;margin:0">{_html.escape(cat)}</p>'
+            f'<article>'
+            f'<h2><a href="/post/{pid}">{title}</a></h2>'
+            f'<p>{_html.escape(cat)}</p>'
             f'</article>'
         )
-    articles_html = '\n'.join(articles) if articles else '<p>Loading…</p>'
+    articles_html = '\n'.join(articles)
     return (
-        '<div id="root">'
-        '<div style="max-width:1400px;margin:0 auto;padding:1.5rem;font-family:sans-serif;'
-        'background:#1c1916;min-height:100vh;color:#f5f4f1">'
-        '<header style="margin-bottom:1.5rem">'
-        '<h1 style="font-size:1.6rem;color:#e8c84a;margin:0">MSNOW — Daily Political Coverage</h1>'
-        '<p style="color:#aaa;margin:.25rem 0 0">Every MSNOW show, updated every 15 minutes.</p>'
-        '</header>'
-        '<main style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem">'
+        '<noscript>'
+        '<h1>MSNOW — Daily Political Coverage</h1>'
+        '<p>Daily political coverage from every MSNOW show. Updated every 15 minutes.</p>'
         + articles_html +
-        '</main>'
-        '</div>'
-        '</div>'
+        '</noscript>'
     )
 
 
@@ -395,10 +378,11 @@ def index():
         f'<script>window.__INITIAL_POSTS__={posts_json};</script>\n</head>',
         1
     )
-    # 2) Replace empty root div with real visible HTML → Google sees content before JS runs
+    # 2) Insert <noscript> SEO block after root div — invisible to JS users (no flash!),
+    #    but Google's first-pass no-JS crawler reads it → fixes Soft 404
     html = html.replace(
         '<div id="root"></div>',
-        _build_static_root(posts),
+        '<div id="root"></div>' + _build_noscript_seo(posts),
         1
     )
     return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
