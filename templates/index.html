@@ -157,10 +157,8 @@
   }
   .free-glow      {animation:freeGlowDark  2.4s ease-in-out;border-radius:6px}
   html.light .free-glow{animation:freeGlowLight 2.4s ease-in-out!important}
-  /* Watch view: smaller video player on desktop */
-  @media (min-width:1024px){
-    .watch-player{ max-width:80%; margin:0 auto; }
-  }
+  /* Watch view: video player fills full column */
+  .watch-player{ width:100%; }
 </style>
 <script>
   /* Apply stored theme before first paint to avoid flash */
@@ -513,7 +511,7 @@ function WatchView({ video, all, onOpen, onClose, isLocked }) {
         <Icon name="arrow-left" size={14} /> Back to all shows
       </button>
 
-      <div className="grid lg:grid-cols-[1fr_360px] gap-8">
+      <div className="grid lg:grid-cols-[1fr_280px] gap-6">
         <div>
           {/* Player */}
           {video.embed_src && (
