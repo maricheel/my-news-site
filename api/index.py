@@ -832,6 +832,47 @@ def delete_post(post_id):
     except Exception as e: return jsonify({'error':str(e)}),500
 
 
+# ── API: admin delete post (session auth) ────────────────────────────────────
+@app.route('/api/admin/posts/<int:post_id>', methods=['DELETE'])
+@require_admin
+def admin_delete_post(post_id):
+    try:
+        conn = get_db(); c = get_cursor(conn)
+        c.execute(f'SELECT id FROM posts WHERE id={PH}', (post_id,))
+        if not fetchone(c):
+            conn.close(); return jsonify({'error': 'Post not found'}), 404
+        c.execute(f'DELETE FROM posts WHERE id={PH}', (post_id,))
+        conn.commit(); conn.close()
+        return jsonify({'ok': True}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ── API: update post (title / thumbnail) ─────────────────────────────────────
+@app.route('/api/posts/<int:post_id>', methods=['PATCH'])
+@require_admin
+def update_post(post_id):
+    try:
+        data = request.get_json() or {}
+        fields = {}
+        if 'title' in data and data['title'].strip():
+            fields['title'] = data['title'].strip()
+        if 'thumbnail_url' in data:
+            fields['thumbnail_url'] = data['thumbnail_url'].strip()
+        if not fields:
+            return jsonify({'error': 'Nothing to update'}), 400
+        conn = get_db(); c = get_cursor(conn)
+        c.execute(f'SELECT id FROM posts WHERE id={PH}', (post_id,))
+        if not fetchone(c):
+            conn.close(); return jsonify({'error': 'Post not found'}), 404
+        set_clause = ', '.join(f'{k}={PH}' for k in fields)
+        c.execute(f'UPDATE posts SET {set_clause} WHERE id={PH}', list(fields.values()) + [post_id])
+        conn.commit(); conn.close()
+        return jsonify({'ok': True}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # ── API: stats ────────────────────────────────────────────────────────────────
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
