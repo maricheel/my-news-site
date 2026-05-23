@@ -459,8 +459,8 @@ function RelatedCard({ video, onOpen, active, locked }) {
 // ── Category chip ─────────────────────────────────────────────────────────
 function CategoryChip({ label, active, count, onClick, highlight }) {
   const textCls = highlight
-    ? (active ? 'text-emerald-300' : 'text-emerald-500 hover:text-emerald-300')
-    : (active ? 'text-ink-100'    : 'text-ink-400 hover:text-ink-200');
+    ? (active ? 'text-emerald-300' : 'text-emerald-400 hover:text-emerald-200')
+    : (active ? 'text-white'       : 'text-ink-200 hover:text-white');
   const barCls  = highlight
     ? (active ? 'bg-emerald-400' : 'bg-transparent')
     : (active ? 'bg-ember'       : 'bg-transparent');
@@ -473,9 +473,7 @@ function CategoryChip({ label, active, count, onClick, highlight }) {
       <span className="inline-flex items-center gap-1.5">
         {highlight && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 opacity-80" />}
         {label}
-        {typeof count === 'number' && (
-          <span className={`font-mono text-[10px] tabular-nums ${cntCls}`}>{count}</span>
-        )}
+        {/* count badge hidden */}
       </span>
       <span className={`pointer-events-none absolute left-2 right-2 -bottom-px h-px transition-colors ${barCls}`} />
     </button>
@@ -991,7 +989,7 @@ function BrowseView({ videos, activeCategory, query, onOpen, onOpenAuth, feature
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 gap-y-6 sm:gap-x-5 sm:gap-y-10">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6 gap-x-3 gap-y-6 sm:gap-x-4 sm:gap-y-8">
               {pageVideos.map(v => (
                 <VideoCard key={v.id} video={v} onOpen={onOpen}
                   locked={isLocked ? isLocked(v) : false}
