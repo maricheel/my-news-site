@@ -618,6 +618,15 @@ function LiveHero() {
   const [loading, setLoading] = React.useState(true);
   const [muted,   setMuted]   = React.useState(true);
   const [paused,  setPaused]  = React.useState(false);
+  const [enabled, setEnabled] = React.useState(null); // null = not yet fetched
+
+  // Check if admin has enabled the live section
+  React.useEffect(() => {
+    fetch('/api/settings/live')
+      .then(r => r.json())
+      .then(d => setEnabled(d.live))
+      .catch(() => setEnabled(true)); // default show if fetch fails
+  }, []);
 
   React.useEffect(() => {
     const video = videoRef.current;
@@ -685,7 +694,8 @@ function LiveHero() {
     hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
   });
 
-  if (error) return null;
+  if (enabled === null) return null; // still loading setting
+  if (!enabled || error) return null;
 
   return (
     <section className="relative overflow-hidden rounded-xl ring-1 ring-white/5 bg-ink-950">

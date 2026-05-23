@@ -505,6 +505,19 @@ def auth_logout():
     return jsonify({'ok': True})
 
 
+# ── API: live section toggle ──────────────────────────────────────────────
+@app.route('/api/settings/live', methods=['GET'])
+def get_live_setting():
+    return jsonify({'live': get_setting('live_section', 'true') == 'true'})
+
+@app.route('/api/settings/live', methods=['POST'])
+@require_admin
+def set_live_setting():
+    data = request.get_json() or {}
+    enabled = bool(data.get('enabled', True))
+    set_setting('live_section', 'true' if enabled else 'false')
+    return jsonify({'live': enabled})
+
 # ── API: premium toggle ───────────────────────────────────────────────────
 @app.route('/api/settings/premium', methods=['GET'])
 def get_premium():
