@@ -365,13 +365,13 @@ function Thumbnail({ video, ratio = '16/9', overlay = true }) {
       {overlay && (
         <>
           <div className="absolute inset-0 bg-gradient-to-t from-ink-950/85 via-ink-950/15 to-transparent" />
-          <div className="absolute left-3 bottom-3 right-3 flex items-end justify-between gap-2">
+          <div className="absolute left-3 bottom-3 right-3 hidden sm:flex items-end justify-between gap-2">
             <div className="font-mono text-[10px] uppercase tracking-[0.18em] leading-tight">
               <div className="text-ink-300/70">{video.category}</div>
               <div className="text-ink-100/95">{video.host}</div>
             </div>
           </div>
-          <div className="absolute right-3 top-3">
+          <div className="absolute right-3 top-3 hidden sm:block">
             {video.embed_src && (
               <span className="rounded-sm bg-ink-950/75 backdrop-blur-sm px-1.5 py-0.5 font-mono text-[10px] text-ink-100 ring-1 ring-white/10">▶ VIDEO</span>
             )}
