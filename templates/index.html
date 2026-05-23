@@ -550,11 +550,21 @@ function WatchView({ video, all, onOpen, onClose, isLocked }) {
               </div>
             </div>
             <div className="flex items-center gap-1 text-ink-400">
-              {[['share-2','Share'],['bookmark','Save']].map(([ic,label]) => (
-                <button key={ic} className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md hover:bg-ink-900 hover:text-ink-100 transition text-[12px]">
-                  <Icon name={ic} size={14} /><span>{label}</span>
-                </button>
-              ))}
+              <button
+                onClick={() => {
+                  const url = 'https://msnow.click/';
+                  if (navigator.share) {
+                    navigator.share({ title: 'MSNOW — Daily Political Coverage', url });
+                  } else {
+                    navigator.clipboard.writeText(url).then(() => {
+                      const btn = document.getElementById('share-btn-label');
+                      if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Share'; }, 2000); }
+                    });
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md hover:bg-ink-900 hover:text-ink-100 transition text-[12px]">
+                <Icon name="share-2" size={14} /><span id="share-btn-label">Share</span>
+              </button>
             </div>
           </div>
 
