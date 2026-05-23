@@ -295,6 +295,85 @@ def _refresh_sitemap_cache(conn):
         return None
 
 
+# ── Live stream proxy ─────────────────────────────────────────────────────────
+# The CDN sets Access-Control-Allow-Origin: https://livenewschat.eu  ← browsers block us
+# Fix: Flask fetches CDN server-side (no CORS) and re-serves with ACAO: *
+import urllib.parse as _urlparse
+
+_LNC_ARBITRATION = 'https://data.lncoperations.ee/server.json'
+_LNC_HLS_PATH    = '/hls/msnbc_live/index.m3u8'
+_LNC_FALLBACK    = 'cdn-fr1-eu.lncnetworks.host'
+_LNC_HEADERS     = {
+    'Referer':    'https://livenewschat.eu/',
+    'Origin':     'https://livenewschat.eu',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+}
+_live_cdn_cache = {'host': _LNC_FALLBACK, 'ts': 0}
+
+def _get_live_cdn():
+    import time
+    if time.time() - _live_cdn_cache['ts'] < 30:
+        return _live_cdn_cache['host']
+    try:
+        r = http_req.get(_LNC_ARBITRATION, timeout=5, headers=_LNC_HEADERS)
+        m = re.search(r'"best"\s*:\s*"([^"]+)"', r.text)
+        if m:
+            _live_cdn_cache['host'] = m.group(1)
+            _live_cdn_cache['ts']   = time.time()
+    except Exception:
+        pass
+    return _live_cdn_cache['host']
+
+def _rewrite_m3u8(text, base_url):
+    """Rewrite all non-comment lines to go through our /api/live/ts proxy."""
+    lines = text.split('\n')
+    out = []
+    for line in lines:
+        s = line.strip()
+        if s and not s.startswith('#'):
+            full = s if s.startswith('http') else base_url + s
+            out.append('/api/live/ts?u=' + _urlparse.quote(full, safe=''))
+        else:
+            out.append(line)
+    return '\n'.join(out)
+
+@app.route('/api/live/m3u8')
+def live_m3u8():
+    cdn = _get_live_cdn()
+    url = f'https://{cdn}{_LNC_HLS_PATH}'
+    try:
+        r = http_req.get(url, timeout=10, headers=_LNC_HEADERS)
+        if r.status_code != 200:
+            return Response('', status=503)
+        base = url.rsplit('/', 1)[0] + '/'
+        body = _rewrite_m3u8(r.text, base)
+        return Response(body, content_type='application/vnd.apple.mpegurl',
+                        headers={'Access-Control-Allow-Origin': '*',
+                                 'Cache-Control': 'no-store'})
+    except Exception as e:
+        return Response(str(e), status=503)
+
+@app.route('/api/live/ts')
+def live_ts():
+    url = request.args.get('u', '')
+    if not url:
+        return Response('missing url', status=400)
+    try:
+        r = http_req.get(url, timeout=20, headers=_LNC_HEADERS)
+        ct = r.headers.get('Content-Type', 'video/MP2T')
+        # If it's a sub-manifest, rewrite its URLs too
+        if 'm3u8' in ct or '.m3u8' in url:
+            base = url.rsplit('/', 1)[0] + '/'
+            body = _rewrite_m3u8(r.text, base)
+            return Response(body, content_type='application/vnd.apple.mpegurl',
+                            headers={'Access-Control-Allow-Origin': '*',
+                                     'Cache-Control': 'no-store'})
+        return Response(r.content, content_type=ct,
+                        headers={'Access-Control-Allow-Origin': '*'})
+    except Exception as e:
+        return Response(str(e), status=503)
+
+
 # ── /mysite.xml ───────────────────────────────────────────────────────────────
 @app.route('/mysite.xml')
 def sitemap_xml():

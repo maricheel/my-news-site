@@ -602,11 +602,11 @@ function WatchView({ video, all, onOpen, onClose, isLocked }) {
   );
 }
 
-// ── HLS live stream URLs (tried in order until one works) ────────────────
+// ── HLS live stream — routed through our server-side proxy to bypass CORS ──
+// CDN only allows Origin: livenewschat.eu; Flask fetches it server-side and
+// re-serves with Access-Control-Allow-Origin: * so the browser accepts it.
 const HLS_STREAMS = [
-  'https://burgas.cdn.lncnetworks.host/hls/msnbc_live/index.m3u8',
-  'https://gnome.cdn.livenewschat.eu/hls/msnbc_live/index.m3u8',
-  'https://deutsch.cdn.lncnetworks.host/hls/msnbc_live/index.m3u8',
+  '/api/live/m3u8',
 ];
 
 // ── Live Hero ─────────────────────────────────────────────────────────────
