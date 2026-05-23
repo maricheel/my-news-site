@@ -200,14 +200,15 @@ def _headers(response):
     response.headers['X-XSS-Protection']       = '1; mode=block'
     response.headers['Referrer-Policy']        = 'strict-origin-when-cross-origin'
     response.headers['Permissions-Policy']     = 'camera=(), microphone=(), geolocation=()'
-    # Cache static assets aggressively; API + HTML never cached
+    # Cache static assets aggressively; HTML pages and API never cached
     path = request.path
     if path.startswith('/static/'):
         response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
-    elif path.startswith('/api/'):
+    elif path == '/' or path.startswith('/post/') or path.startswith('/api/'):
+        # Homepage and post pages must NOT be cached — Google needs fresh SSR HTML
         response.headers['Cache-Control'] = 'no-store'
     else:
-        response.headers['Cache-Control'] = 'public, max-age=60, stale-while-revalidate=300'
+        response.headers['Cache-Control'] = 'public, max-age=60'
     return response
 
 
@@ -317,6 +318,54 @@ def sitemap_xml():
 # ── Page routes ───────────────────────────────────────────────────────────────
 _INDEX_HTML_TPL = None  # cached once per cold-start
 
+def _build_static_root(posts):
+    """
+    Build real visible HTML inside <div id="root"> so Google's first-pass crawler
+    sees actual content before any JavaScript executes — this definitively fixes Soft 404.
+    React will replace this markup when it mounts; users never notice.
+    """
+    VALID_CATS = {'The Daily Show', 'Morning Joe', 'Deadline White House',
+                  'The Rachel Maddow Show', 'Alex Wagner Tonight',
+                  'All In with Chris Hayes', 'The 11th Hour',
+                  'Hardball', 'Last Word', 'Velshi', 'The Beat',
+                  'Way Too Early', 'Andrea Mitchell Reports',
+                  'Hallie Jackson Reports', 'Katy Tur Reports',
+                  'José Díaz-Balart Reports'}
+    articles = []
+    for p in (posts or [])[:30]:  # top-30 is plenty for Google
+        cats = p.get('categories') or []
+        if isinstance(cats, str):
+            try: cats = json.loads(cats)
+            except Exception: cats = []
+        cat = cats[0] if cats else ''
+        title = _html.escape(p.get('title') or '')
+        pid   = p.get('id', '')
+        thumb = _html.escape(p.get('thumbnail_url') or '')
+        img_tag = f'<img src="{thumb}" alt="{title}" loading="lazy" style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:6px">' if thumb else ''
+        articles.append(
+            f'<article style="margin-bottom:1.5rem;padding:1rem;background:#2a2723;border-radius:8px">'
+            f'{img_tag}'
+            f'<h2 style="font-size:1rem;margin:.5rem 0;"><a href="/post/{pid}" style="color:#e8c84a;text-decoration:none">{title}</a></h2>'
+            f'<p style="font-size:.8rem;color:#aaa;margin:0">{_html.escape(cat)}</p>'
+            f'</article>'
+        )
+    articles_html = '\n'.join(articles) if articles else '<p>Loading…</p>'
+    return (
+        '<div id="root">'
+        '<div style="max-width:1400px;margin:0 auto;padding:1.5rem;font-family:sans-serif;'
+        'background:#1c1916;min-height:100vh;color:#f5f4f1">'
+        '<header style="margin-bottom:1.5rem">'
+        '<h1 style="font-size:1.6rem;color:#e8c84a;margin:0">MSNOW — Daily Political Coverage</h1>'
+        '<p style="color:#aaa;margin:.25rem 0 0">Every MSNOW show, updated every 15 minutes.</p>'
+        '</header>'
+        '<main style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem">'
+        + articles_html +
+        '</main>'
+        '</div>'
+        '</div>'
+    )
+
+
 @app.route('/')
 def index():
     global _INDEX_HTML_TPL
@@ -324,8 +373,8 @@ def index():
         with open(os.path.join(app.template_folder, 'index.html'), 'r', encoding='utf-8') as f:
             _INDEX_HTML_TPL = f.read()
 
-    # Inject posts so React renders instantly (no /api/posts round-trip needed)
-    # This is what stops Google from seeing a loading spinner → fixes Soft 404
+    # Fetch posts once; use for both the JS injection and the static HTML fallback
+    posts = []
     posts_json = 'null'
     try:
         conn = get_db(); c = get_cursor(conn)
@@ -335,13 +384,21 @@ def index():
             'FROM posts ORDER BY created_at DESC LIMIT 300'
         )
         rows = fetchall(c); conn.close()
-        posts_json = json.dumps([row_to_dict(r) for r in rows if r], default=str)
+        posts = [row_to_dict(r) for r in rows if r]
+        posts_json = json.dumps(posts, default=str)
     except Exception:
         pass
 
+    # 1) Inject posts JSON for React (no API round-trip → instant render)
     html = _INDEX_HTML_TPL.replace(
         '</head>',
         f'<script>window.__INITIAL_POSTS__={posts_json};</script>\n</head>',
+        1
+    )
+    # 2) Replace empty root div with real visible HTML → Google sees content before JS runs
+    html = html.replace(
+        '<div id="root"></div>',
+        _build_static_root(posts),
         1
     )
     return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
