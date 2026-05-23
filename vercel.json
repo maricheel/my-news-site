@@ -2,10 +2,6 @@
   "version": 2,
   "builds": [
     {
-      "src": "mysite.xml",
-      "use": "@vercel/static"
-    },
-    {
       "src": "api/index.py",
       "use": "@vercel/python",
       "config": {
@@ -15,30 +11,8 @@
   ],
   "routes": [
     {
-      "src": "/mysite\\.xml",
-      "dest": "/mysite.xml",
-      "headers": {
-        "Content-Type": "application/xml; charset=utf-8",
-        "Cache-Control": "public, max-age=3600"
-      }
-    },
-    {
       "src": "/(.*)",
       "dest": "api/index.py"
-    }
-  ],
-  "redirects": [
-    {
-      "source": "/(.*)",
-      "has": [{ "type": "host", "value": "www.msnbc.click" }],
-      "destination": "https://msnow.click/$1",
-      "permanent": true
-    },
-    {
-      "source": "/(.*)",
-      "has": [{ "type": "host", "value": "msnbc.click" }],
-      "destination": "https://msnow.click/$1",
-      "permanent": true
     }
   ]
 }

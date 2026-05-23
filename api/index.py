@@ -178,6 +178,15 @@ def require_api_key(f):
     return decorated
 
 
+# ── Redirect secondary domains → canonical msnow.click ───────────────────────
+@app.before_request
+def _canonical_redirect():
+    host = request.host.split(':')[0]
+    if host in ('msnbc.click', 'www.msnbc.click', 'www.msnow.click'):
+        url = 'https://msnow.click' + request.full_path.rstrip('?')
+        return redirect(url, 301)
+
+
 # ── CORS + Security + Cache headers ───────────────────────────────────────────
 @app.after_request
 def _headers(response):
@@ -224,34 +233,47 @@ def robots_txt():
 
 
 # ── sitemap helpers ───────────────────────────────────────────────────────────
+# Hardcoded baseline — zero DB, zero I/O, always works on cold start.
+# Updated by cron via settings cache; this is the last-resort fallback.
+_SITEMAP_BASELINE = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://msnow.click/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://msnow.click/post/73</loc><lastmod>2026-05-23</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://msnow.click/post/72</loc><lastmod>2026-05-23</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://msnow.click/post/71</loc><lastmod>2026-05-23</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://msnow.click/post/70</loc><lastmod>2026-05-22</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://msnow.click/post/69</loc><lastmod>2026-05-22</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://msnow.click/post/68</loc><lastmod>2026-05-22</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://msnow.click/post/67</loc><lastmod>2026-05-22</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://msnow.click/post/66</loc><lastmod>2026-05-22</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://msnow.click/post/65</loc><lastmod>2026-05-22</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://msnow.click/post/61</loc><lastmod>2026-05-22</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://msnow.click/post/31</loc><lastmod>2026-05-22</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://msnow.click/post/30</loc><lastmod>2026-05-22</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://msnow.click/post/14</loc><lastmod>2026-05-22</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://msnow.click/post/13</loc><lastmod>2026-05-22</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+</urlset>""".strip()
+
+
 def _build_sitemap_xml(rows):
-    """Build sitemap XML string from a list of post dicts."""
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-        '  <url>',
-        '    <loc>https://msnow.click/</loc>',
-        '    <changefreq>hourly</changefreq>',
-        '    <priority>1.0</priority>',
-        '  </url>',
+        '  <url><loc>https://msnow.click/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>',
     ]
     for row in rows:
-        raw_dt = row.get('created_at', '')
-        dt = str(raw_dt)[:10] if raw_dt else ''
-        lines += [
-            '  <url>',
-            f'    <loc>https://msnow.click/post/{row["id"]}</loc>',
-            f'    <lastmod>{dt}</lastmod>' if dt else '',
-            '    <changefreq>weekly</changefreq>',
-            '    <priority>0.8</priority>',
-            '  </url>',
-        ]
+        dt = str(row.get('created_at', ''))[:10]
+        lastmod = f'<lastmod>{dt}</lastmod>' if dt else ''
+        lines.append(
+            f'  <url><loc>https://msnow.click/post/{row["id"]}</loc>'
+            f'{lastmod}<changefreq>weekly</changefreq><priority>0.8</priority></url>'
+        )
     lines.append('</urlset>')
-    return '\n'.join(l for l in lines if l)
+    return '\n'.join(lines)
 
 
 def _refresh_sitemap_cache(conn):
-    """Regenerate sitemap XML and store it in settings. Call after any post change."""
+    """Regenerate sitemap XML and store it in settings. Called by cron after each new post."""
     try:
         c = get_cursor(conn)
         c.execute('SELECT id, created_at FROM posts ORDER BY created_at DESC LIMIT 500')
@@ -261,8 +283,7 @@ def _refresh_sitemap_cache(conn):
             c.execute(
                 'INSERT INTO settings(key,value) VALUES(%s,%s) '
                 'ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value',
-                ('sitemap_xml', xml)
-            )
+                ('sitemap_xml', xml))
         else:
             c.execute('INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)', ('sitemap_xml', xml))
         conn.commit()
@@ -273,40 +294,24 @@ def _refresh_sitemap_cache(conn):
         return None
 
 
-# ── sitemap.xml ───────────────────────────────────────────────────────────────
+# ── /mysite.xml ───────────────────────────────────────────────────────────────
 @app.route('/mysite.xml')
 def sitemap_xml():
-    # ── 1. Serve pre-built cache (single fast settings row, no post scan) ─────
-    cached = get_setting('sitemap_xml', '')
-    if cached and cached.startswith('<?xml'):
-        return Response(cached, status=200, mimetype='application/xml',
-                        headers={'Content-Type': 'application/xml; charset=utf-8',
-                                 'Cache-Control': 'public, max-age=3600'})
-
-    # ── 2. Fallback: build dynamically and save for next time ─────────────────
+    xml = _SITEMAP_BASELINE          # instant fallback — no I/O, no DB
+    # Try settings cache (updated by cron after each new post)
     try:
-        conn = get_db(); c = get_cursor(conn)
-        c.execute('SELECT id, created_at FROM posts ORDER BY created_at DESC LIMIT 500')
-        rows = fetchall(c)
-        xml  = _build_sitemap_xml(rows)
-        try:
-            if USE_POSTGRES:
-                c.execute(
-                    'INSERT INTO settings(key,value) VALUES(%s,%s) '
-                    'ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value',
-                    ('sitemap_xml', xml)
-                )
-            else:
-                c.execute('INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)', ('sitemap_xml', xml))
-            conn.commit()
-        except Exception:
-            pass
-        conn.close()
+        cached = get_setting('sitemap_xml', '')
+        if cached and cached.startswith('<?xml'):
+            xml = cached
     except Exception:
-        xml = _build_sitemap_xml([])   # homepage-only fallback — always valid XML
-    return Response(xml, status=200, mimetype='application/xml',
-                    headers={'Content-Type': 'application/xml; charset=utf-8',
-                             'Cache-Control': 'public, max-age=3600'})
+        pass
+    return Response(
+        xml, status=200,
+        headers={
+            'Content-Type':  'application/xml; charset=utf-8',
+            'Cache-Control': 'public, max-age=3600',
+        }
+    )
 
 
 # ── Page routes ───────────────────────────────────────────────────────────────
