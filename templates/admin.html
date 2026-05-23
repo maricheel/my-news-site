@@ -46,6 +46,29 @@
     </button>
   </div>
 
+  <!-- Admin accounts -->
+  <div class="mb-8">
+    <div class="font-mono text-[11px] uppercase tracking-[0.22em] text-ink-500 mb-4">Admin Accounts</div>
+    <div class="rounded-xl ring-1 ring-ink-800 bg-ink-900/40 p-5">
+      <!-- Add new admin -->
+      <div class="flex flex-wrap gap-3 items-center mb-5">
+        <input type="email" id="new-admin-email" placeholder="Google account email"
+          class="flex-1 min-w-[220px] bg-ink-900 ring-1 ring-ink-700 rounded-md px-3 py-2 text-[14px] text-ink-100 outline-none focus:ring-ember/50"
+          onkeydown="if(event.key==='Enter') addAdminEmail()">
+        <button onclick="addAdminEmail()"
+          class="h-10 px-5 rounded-md bg-ember hover:bg-ember/80 text-ink-950 font-medium text-[13px] transition">Add Admin</button>
+        <span id="admin-email-msg" class="font-mono text-[12px] text-ink-500"></span>
+      </div>
+      <!-- Current admins list -->
+      <div id="admin-emails-list">
+        <div class="flex items-center gap-2 py-4 text-ink-500 text-[13px]">
+          <span class="inline-block w-4 h-4 border-2 border-ink-700 border-t-ember rounded-full spin"></span> Loading…
+        </div>
+      </div>
+    </div>
+    <p class="mt-2 text-[11px] text-ink-600 font-mono">These Google accounts can access the admin dashboard. The super admin cannot be removed.</p>
+  </div>
+
   <!-- Stats -->
   <div id="stats" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-10">
     <div class="flex items-center justify-center py-10 col-span-3 gap-3 text-ink-500">
@@ -364,9 +387,86 @@ async function rejectUser(id) {
   if (r.ok) loadUsers();
 }
 
+// ── Admin email management ────────────────────────────────────────────────
+let _superAdmin = '';
+
+function renderAdminEmails(data) {
+  _superAdmin = data.super || '';
+  const all = [{ email: data.super, isSuper: true }, ...(data.admins || []).map(e => ({ email: e, isSuper: false }))];
+  const list = document.getElementById('admin-emails-list');
+  if (all.length === 0) {
+    list.innerHTML = '<div class="text-ink-500 text-[13px] py-2">No admin accounts configured.</div>';
+    return;
+  }
+  list.innerHTML = `
+    <div class="divide-y divide-ink-800 -mx-5 px-5">
+      ${all.map(({ email, isSuper }) => `
+      <div class="flex items-center justify-between gap-4 py-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-7 h-7 rounded-full bg-ink-800 ring-1 ring-ink-700 flex items-center justify-center text-[11px] text-ink-400 uppercase flex-shrink-0">
+            ${esc(email[0] || '?')}
+          </div>
+          <span class="text-[13px] text-ink-200 truncate">${esc(email)}</span>
+          ${isSuper ? '<span class="flex-shrink-0 px-2 py-0.5 rounded font-mono text-[10px] uppercase tracking-widest bg-ember/20 text-ember ring-1 ring-ember/30">Super</span>' : ''}
+        </div>
+        ${isSuper
+          ? '<span class="text-[11px] font-mono text-ink-600">Cannot remove</span>'
+          : `<button onclick="removeAdminEmail('${esc(email)}')"
+              class="flex-shrink-0 h-7 px-3 rounded bg-red-900/30 hover:bg-red-800/50 text-red-400 font-mono text-[11px] ring-1 ring-red-700/40 transition">
+              Remove</button>`
+        }
+      </div>`).join('')}
+    </div>`;
+}
+
+async function loadAdminEmails() {
+  try {
+    const r = await fetch('/api/admin/emails');
+    if (!r.ok) { document.getElementById('admin-emails-list').innerHTML = '<div class="text-red-400 text-[13px] py-2">Failed to load.</div>'; return; }
+    const d = await r.json();
+    renderAdminEmails(d);
+  } catch { document.getElementById('admin-emails-list').innerHTML = '<div class="text-red-400 text-[13px] py-2">Request failed.</div>'; }
+}
+
+async function addAdminEmail() {
+  const input = document.getElementById('new-admin-email');
+  const msg   = document.getElementById('admin-email-msg');
+  const email = input.value.trim().toLowerCase();
+  msg.textContent = '';
+  if (!email || !email.includes('@')) { msg.textContent = 'Enter a valid email.'; msg.style.color = 'oklch(0.65 0.22 25)'; return; }
+  try {
+    const r = await fetch('/api/admin/emails', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const d = await r.json();
+    if (r.ok) {
+      input.value = '';
+      msg.textContent = '✓ Added';
+      msg.style.color = 'oklch(0.78 0.13 45)';
+      loadAdminEmails();
+      setTimeout(() => { msg.textContent = ''; }, 3000);
+    } else {
+      msg.textContent = d.error || 'Error';
+      msg.style.color = 'oklch(0.65 0.22 25)';
+    }
+  } catch { msg.textContent = 'Request failed.'; msg.style.color = 'oklch(0.65 0.22 25)'; }
+}
+
+async function removeAdminEmail(email) {
+  if (!confirm(`Remove ${email} from admins?`)) return;
+  try {
+    const r = await fetch('/api/admin/emails/' + encodeURIComponent(email), { method: 'DELETE' });
+    const d = await r.json();
+    if (r.ok) loadAdminEmails();
+    else alert(d.error || 'Error removing admin.');
+  } catch { alert('Request failed.'); }
+}
+
 loadWhatsapp();
 loadPremium();
 loadLive();
+loadAdminEmails();
 loadStats();
 loadRecent();
 loadUsers();

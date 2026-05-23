@@ -16,7 +16,15 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'change-this-secret')
 app.config['PERMANENT_SESSION_LIFETIME'] = 60 * 60 * 24 * 30  # 30 days
 API_KEY          = os.getenv('API_KEY', 'change-this-key')
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
-ALLOWED_EMAIL    = 'hicham1elbanaji@gmail.com'
+SUPER_ADMIN = 'hicham1elbanaji@gmail.com'   # permanent, can never be removed
+
+def _get_admin_emails():
+    """Return full set of allowed admin emails (super admin + DB-managed list)."""
+    try:
+        extra = json.loads(get_setting('admin_emails', '[]'))
+    except Exception:
+        extra = []
+    return {SUPER_ADMIN} | set(extra)
 
 # ── Database ──────────────────────────────────────────────────────────────────
 _raw_db_url = (os.getenv('DATABASE_URL') or os.getenv('POSTGRES_URL')
@@ -159,7 +167,7 @@ def require_admin(f):
     """Redirect to login page (or return 401 for API calls) if not authenticated as admin."""
     @wraps(f)
     def decorated(*args, **kwargs):
-        if session.get('admin_email') != ALLOWED_EMAIL:
+        if session.get('admin_email') not in _get_admin_emails():
             if request.path.startswith('/api/'):
                 return jsonify({'error': 'Admin authentication required'}), 401
             return redirect('/auth/login')
@@ -485,7 +493,7 @@ def admin_dashboard():
 
 @app.route('/auth/login')
 def auth_login():
-    if session.get('admin_email') == ALLOWED_EMAIL:
+    if session.get('admin_email') in _get_admin_emails():
         return redirect('/admin')
     return render_template('login.html', google_client_id=GOOGLE_CLIENT_ID)
 
@@ -493,7 +501,7 @@ def auth_login():
 def auth_verify():
     token = (request.get_json() or {}).get('token', '')
     email = verify_google_token(token)
-    if email == ALLOWED_EMAIL:
+    if email in _get_admin_emails():
         session.permanent = True
         session['admin_email'] = email
         return jsonify({'ok': True})
@@ -503,6 +511,48 @@ def auth_verify():
 def auth_logout():
     session.clear()
     return jsonify({'ok': True})
+
+
+# ── API: admin email management ───────────────────────────────────────────
+@app.route('/api/admin/emails', methods=['GET'])
+@require_admin
+def get_admin_emails_api():
+    try:
+        extra = json.loads(get_setting('admin_emails', '[]'))
+    except Exception:
+        extra = []
+    return jsonify({'super': SUPER_ADMIN, 'admins': extra})
+
+@app.route('/api/admin/emails', methods=['POST'])
+@require_admin
+def add_admin_email():
+    data  = request.get_json() or {}
+    email = (data.get('email') or '').strip().lower()
+    if not email or '@' not in email:
+        return jsonify({'error': 'Invalid email'}), 400
+    try:
+        extra = json.loads(get_setting('admin_emails', '[]'))
+    except Exception:
+        extra = []
+    if email == SUPER_ADMIN or email in extra:
+        return jsonify({'error': 'Already an admin'}), 409
+    extra.append(email)
+    set_setting('admin_emails', json.dumps(extra))
+    return jsonify({'ok': True, 'admins': extra})
+
+@app.route('/api/admin/emails/<path:email>', methods=['DELETE'])
+@require_admin
+def remove_admin_email(email):
+    email = email.strip().lower()
+    if email == SUPER_ADMIN:
+        return jsonify({'error': 'Cannot remove the super admin'}), 403
+    try:
+        extra = json.loads(get_setting('admin_emails', '[]'))
+    except Exception:
+        extra = []
+    extra = [e for e in extra if e != email]
+    set_setting('admin_emails', json.dumps(extra))
+    return jsonify({'ok': True, 'admins': extra})
 
 
 # ── API: live section toggle ──────────────────────────────────────────────
@@ -601,7 +651,7 @@ def user_status():
 def get_contact():
     return jsonify({
         'whatsapp': get_setting('admin_whatsapp', ''),
-        'email': ALLOWED_EMAIL,
+        'email': 'hicham1elbanaji@gmail.com',
     })
 
 # ── API: admin — update settings ──────────────────────────────────────────
