@@ -1251,7 +1251,12 @@ function App() {
 
   // Fetch posts + premium status + user session in parallel
   useEffect(() => {
-    const postsP = fetch('/api/posts?limit=300&sort=newest').then(r => r.json());
+    // Use server-injected posts if available — renders instantly, no API round-trip.
+    // This prevents Google from seeing a loading spinner (fixes Soft 404).
+    const ip = window.__INITIAL_POSTS__;
+    const postsP = (ip && ip.length)
+      ? Promise.resolve({ posts: ip })
+      : fetch('/api/posts?limit=300&sort=newest').then(r => r.json());
     const premiumP = fetch('/api/settings/premium').then(r => r.json()).catch(() => ({ premium: false }));
     const userP = fetch('/api/auth/user-status').then(r => r.json()).catch(() => ({ logged_in: false, email: '' }));
 

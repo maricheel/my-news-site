@@ -315,10 +315,36 @@ def sitemap_xml():
 
 
 # ── Page routes ───────────────────────────────────────────────────────────────
+_INDEX_HTML_TPL = None  # cached once per cold-start
+
 @app.route('/')
 def index():
-    # index.html is a React SPA — serve raw, skip Jinja2 (JSX {{ }} breaks Jinja)
-    return send_from_directory(app.template_folder, 'index.html')
+    global _INDEX_HTML_TPL
+    if _INDEX_HTML_TPL is None:
+        with open(os.path.join(app.template_folder, 'index.html'), 'r', encoding='utf-8') as f:
+            _INDEX_HTML_TPL = f.read()
+
+    # Inject posts so React renders instantly (no /api/posts round-trip needed)
+    # This is what stops Google from seeing a loading spinner → fixes Soft 404
+    posts_json = 'null'
+    try:
+        conn = get_db(); c = get_cursor(conn)
+        c.execute(
+            'SELECT id, title, content, rumble_link, featured_image_id, '
+            'categories, metadata, created_at, source, thumbnail_url '
+            'FROM posts ORDER BY created_at DESC LIMIT 300'
+        )
+        rows = fetchall(c); conn.close()
+        posts_json = json.dumps([row_to_dict(r) for r in rows if r], default=str)
+    except Exception:
+        pass
+
+    html = _INDEX_HTML_TPL.replace(
+        '</head>',
+        f'<script>window.__INITIAL_POSTS__={posts_json};</script>\n</head>',
+        1
+    )
+    return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
 
 @app.route('/post/<int:post_id>')
 def post_detail(post_id):
