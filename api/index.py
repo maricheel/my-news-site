@@ -325,12 +325,20 @@ def _get_live_cdn():
     return _live_cdn_cache['host']
 
 def _rewrite_m3u8(text, base_url):
-    """Rewrite all non-comment lines to go through our /api/live/ts proxy."""
+    """Rewrite all segment/key URLs to go through our /api/live/ts proxy."""
     lines = text.split('\n')
     out = []
     for line in lines:
         s = line.strip()
-        if s and not s.startswith('#'):
+        # Rewrite #EXT-X-KEY URI="..." so decryption key is also proxied
+        if s.startswith('#EXT-X-KEY'):
+            def _rewrite_key_uri(m):
+                uri = m.group(1)
+                full = uri if uri.startswith('http') else base_url + uri
+                return 'URI="/api/live/ts?u=' + _urlparse.quote(full, safe='') + '"'
+            line = re.sub(r'URI="([^"]+)"', _rewrite_key_uri, line)
+            out.append(line)
+        elif s and not s.startswith('#'):
             full = s if s.startswith('http') else base_url + s
             out.append('/api/live/ts?u=' + _urlparse.quote(full, safe=''))
         else:
